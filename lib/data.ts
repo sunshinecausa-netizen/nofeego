@@ -1,0 +1,23 @@
+// Re-export from services for backward compatibility
+export {
+  fetchNeighborhoods,
+  fetchNeighborhoodBySlug,
+  fetchBuildings,
+  fetchFeaturedBuildings,
+  fetchBuildingBySlug,
+  fetchBuildingsByNeighborhood,
+  fetchListings,
+  fetchListingBySlug,
+  fetchListingsByNeighborhood,
+  fetchListingsByBuilding,
+  fetchLatestListings,
+  fetchLuxuryListings,
+  fetchListingsByType,
+  fetchFavoriteIds,
+  toggleFavorite,
+  submitProperty,
+  formatPrice,
+  formatBedrooms,
+  formatBathrooms,
+  formatDate,
+} from '@/lib/services';
