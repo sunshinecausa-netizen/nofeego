@@ -6,7 +6,7 @@
 
 ## Purpose
 
-V2 expands the existing Supabase schema without replacing V1 tables or IDs. It supports 5,000+ buildings, 100,000+ units, SEO routes, Google Maps, AI retrieval, Admin CMS and future API/mobile clients. The executable contract is `supabase/migrations/20260731000100_database_v2.sql`; the complete field inventory remains in `12_Data_Dictionary.md`.
+V2 expands the existing Supabase schema without replacing V1 tables or IDs. It supports 5,000+ buildings, 100,000+ units, SEO routes, Google Maps, AI retrieval, Admin CMS and future API/mobile clients. The executable contract is `supabase/migrations/20260731000100_database_v2.sql`.
 
 ## Compatibility Strategy
 
@@ -88,9 +88,6 @@ Committed imports require server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_
 
 At 100,000 Units, building-leading B-tree indexes and keyset pagination are sufficient. Add PostGIS only when verified radius/polygon queries justify it; add pgvector only for versioned, source-backed knowledge chunks. Partition availability history only after measured growth.
 
-## Related Documents
+## Operational Source of Truth
 
-- [Canonical database architecture](02_Database_Architecture.md)
-- [Data dictionary](12_Data_Dictionary.md)
-- [Knowledge graph](11_Knowledge_Graph.md)
-- [Development guidelines](08_Development_Guidelines.md)
+The migration, generated-style TypeScript contract in `lib/database.types.ts`, API models in `lib/api-models.ts`, and this document must change together. If they disagree, stop deployment and reconcile them before applying the migration.
