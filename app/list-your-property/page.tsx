@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Building2, Home, DollarSign, Calendar, Check, ChevronRight, ChevronLeft,
   Loader2, ImagePlus, X,
@@ -78,7 +79,8 @@ export default function ListYourPropertyPage() {
     );
   }
 
-  const updateForm = (key: string, value: any) => setForm({ ...form, [key]: value });
+  const updateForm = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+    setForm({ ...form, [key]: value });
 
   const canProceed = () => {
     if (step === 0) return form.title && form.neighborhood_id && form.address;
@@ -97,7 +99,7 @@ export default function ListYourPropertyPage() {
       await submitProperty({
         title: form.title,
         neighborhood_id: form.neighborhood_id,
-        neighborhood_name: neighborhood?.name,
+        neighborhood_name: neighborhood?.name ?? null,
         building_name: form.building_name,
         address: form.address,
         unit_number: form.unit_number,
@@ -113,12 +115,12 @@ export default function ListYourPropertyPage() {
         description: form.description,
         amenities: amenitiesArray,
         images: form.images.filter(Boolean),
-        contact_email: form.contact_email || user.email,
+        contact_email: form.contact_email || user.email || null,
         contact_phone: form.contact_phone,
       });
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to submit property.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to submit property.');
     } finally {
       setSubmitting(false);
     }
@@ -135,7 +137,7 @@ export default function ListYourPropertyPage() {
           Your property has been submitted for review. An administrator will review and approve it before it appears publicly on the site.
         </p>
         <Button asChild>
-          <a href="/">Back to Home</a>
+          <Link href="/">Back to Home</Link>
         </Button>
       </div>
     );

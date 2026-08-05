@@ -19,14 +19,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) { router.push('/sign-in'); return; }
-    if (profile && !profile.is_admin) { router.push('/'); return; }
-    if (profile?.is_admin) loadUsers();
-  }, [user, profile, authLoading]);
-
-  const loadUsers = async () => {
+  async function loadUsers() {
     try {
       const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
       setUsers(data as Profile[] ?? []);
@@ -35,7 +28,14 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.push('/sign-in'); return; }
+    if (profile && !profile.is_admin) { router.push('/'); return; }
+    if (profile?.is_admin) queueMicrotask(() => void loadUsers());
+  }, [user, profile, authLoading, router]);
 
   const toggleAdmin = async (userId: string, currentAdmin: boolean) => {
     if (!confirm(currentAdmin ? 'Remove admin privileges?' : 'Grant admin privileges?')) return;

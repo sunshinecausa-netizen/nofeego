@@ -13,6 +13,18 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase/client';
 import { formatPrice } from '@/lib/services';
 
+type SubmissionSummary = {
+  id: string;
+  submission_data: {
+    title?: string;
+    price?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    neighborhood_name?: string;
+  };
+  profiles?: { email: string | null } | null;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const { user, profile, loading: authLoading, signOut } = useAuth();
@@ -25,7 +37,7 @@ export default function AdminPage() {
     totalUsers: 0,
     avgPrice: 0,
   });
-  const [pendingSubmissions, setPendingSubmissions] = useState<any[]>([]);
+  const [pendingSubmissions, setPendingSubmissions] = useState<SubmissionSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,7 +47,7 @@ export default function AdminPage() {
     if (profile?.is_admin) loadStats();
   }, [user, profile, authLoading]);
 
-  const loadStats = async () => {
+  async function loadStats() {
     try {
       const [listings, buildings, neighborhoods, users, submissions] = await Promise.all([
         supabase.from('listings').select('price, status'),
@@ -61,13 +73,13 @@ export default function AdminPage() {
         totalUsers: users.count ?? 0,
         avgPrice,
       });
-      setPendingSubmissions(submissions.data ?? []);
+      setPendingSubmissions((submissions.data ?? []) as unknown as SubmissionSummary[]);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const approveSubmission = async (id: string) => {
     await supabase.from('property_submissions').update({ status: 'approved' }).eq('id', id);

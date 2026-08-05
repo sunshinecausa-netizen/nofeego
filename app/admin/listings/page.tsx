@@ -43,7 +43,7 @@ export default function AdminListingsPage() {
     if (profile?.is_admin) loadData();
   }, [user, profile, authLoading]);
 
-  const loadData = async () => {
+  async function loadData() {
     try {
       const [l, b, n] = await Promise.all([
         supabase.from('listings').select('*, buildings(name), neighborhoods(name)').order('created_at', { ascending: false }),
@@ -58,7 +58,7 @@ export default function AdminListingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this listing? This cannot be undone.')) return;
@@ -247,8 +247,8 @@ function ListingForm({
         if (error) throw error;
       }
       onSaved();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unable to save listing.');
     } finally {
       setSaving(false);
     }

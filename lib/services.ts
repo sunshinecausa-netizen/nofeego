@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import type { Listing, Building, Neighborhood, SearchFilters } from '@/lib/types';
+import type { Json } from '@/lib/database.types';
 
 // ==========================================
 // Neighborhoods
@@ -218,7 +219,7 @@ export async function toggleFavorite(listingId: string): Promise<boolean> {
 // ==========================================
 // Property Submissions
 // ==========================================
-export async function submitProperty(formData: Record<string, any>): Promise<void> {
+export async function submitProperty(formData: Record<string, Json>): Promise<void> {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) throw new Error('Must be signed in to submit a property');
 

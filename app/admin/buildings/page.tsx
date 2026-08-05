@@ -39,7 +39,7 @@ export default function AdminBuildingsPage() {
     if (profile?.is_admin) loadData();
   }, [user, profile, authLoading]);
 
-  const loadData = async () => {
+  async function loadData() {
     try {
       const [b, n] = await Promise.all([
         supabase.from('buildings').select('*, neighborhoods(name)').order('name'),
@@ -52,7 +52,7 @@ export default function AdminBuildingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this building? Listings in this building will remain but lose the building reference.')) return;
@@ -202,8 +202,8 @@ function BuildingForm({
         if (error) throw error;
       }
       onSaved();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unable to save building.');
     } finally {
       setSaving(false);
     }

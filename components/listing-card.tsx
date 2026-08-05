@@ -9,6 +9,8 @@ import type { Listing } from '@/lib/types';
 import { PET_POLICY_LABELS, LISTING_TYPE_LABELS } from '@/lib/types';
 import { formatPrice, formatBedrooms, formatBathrooms } from '@/lib/services';
 
+const AVAILABILITY_CUTOFF = Date.now() + 7 * 86400000;
+
 export function ListingCard({
   listing,
   onHover,
@@ -22,7 +24,7 @@ export function ListingCard({
     : [listing.buildings?.hero_image ?? 'https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg'];
 
   const neighborhoodName = listing.neighborhoods?.name ?? 'Manhattan';
-  const isAvailable = !listing.move_in_date || new Date(listing.move_in_date) <= new Date(Date.now() + 7 * 86400000);
+  const isAvailable = !listing.move_in_date || new Date(listing.move_in_date) <= new Date(AVAILABILITY_CUTOFF);
 
   return (
     <Link
