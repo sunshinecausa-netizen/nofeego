@@ -1,38 +1,28 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { AlertCircle, Building2, ChevronLeft, ChevronRight, MapPin, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Building } from '@/lib/types';
-import { fetchBuildingsPage, type BuildingsPageResult } from '@/lib/public-buildings';
+import type { BuildingsPageResult } from '@/lib/public-buildings';
 
 const PAGE_SIZE = 24;
 
 type Props = {
   initialPage: number;
   initialQuery?: string;
+  initialResult: BuildingsPageResult;
+  initialError?: string | null;
   mode: 'buildings' | 'search';
 };
 
-export function BuildingBrowser({ initialPage, initialQuery = '', mode }: Props) {
-  const [result, setResult] = useState<BuildingsPageResult>({ buildings: [], total: 0 });
+export function BuildingBrowser({ initialPage, initialQuery = '', initialResult, initialError = null, mode }: Props) {
+  const result = initialResult;
   const [query, setQuery] = useState(initialQuery);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    fetchBuildingsPage({ page: initialPage, pageSize: PAGE_SIZE, search: initialQuery })
-      .then((data) => active && setResult(data))
-      .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : 'Unable to load buildings.');
-      })
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, [initialPage, initialQuery]);
+  const error = initialError;
 
   const pageCount = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
   const route = mode === 'search' ? '/search' : '/buildings';
@@ -57,7 +47,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', mode }: Props)
           <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
             {mode === 'search' ? 'Search Buildings' : 'Buildings'}
           </h1>
-          {!loading && !error && <p className="text-sm text-muted-foreground">{result.total} verified buildings</p>}
+          {!error && <p className="text-sm text-muted-foreground">{result.total} verified buildings</p>}
         </div>
       </div>
 
@@ -67,13 +57,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', mode }: Props)
         <Button type="submit"><Search className="mr-2 h-4 w-4" />Search</Button>
       </form>
 
-      {loading && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading buildings" aria-busy="true">
-          {Array.from({ length: 6 }, (_, index) => <div key={index} className="aspect-[4/3] animate-pulse rounded-xl bg-muted" />)}
-        </div>
-      )}
-
-      {!loading && error && (
+      {error && (
         <div className="flex flex-col items-center justify-center py-20 text-center" role="alert">
           <AlertCircle className="mb-3 h-10 w-10 text-destructive" />
           <h2 className="mb-1 text-lg font-semibold">We couldn&apos;t load the buildings</h2>
@@ -82,7 +66,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', mode }: Props)
         </div>
       )}
 
-      {!loading && !error && result.buildings.length === 0 && (
+      {!error && result.buildings.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Building2 className="mb-3 h-10 w-10 text-muted-foreground" />
           <h2 className="mb-1 text-lg font-semibold">No buildings found</h2>
@@ -91,7 +75,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', mode }: Props)
         </div>
       )}
 
-      {!loading && !error && result.buildings.length > 0 && (
+      {!error && result.buildings.length > 0 && (
         <>
           <p className="mb-4 text-sm text-muted-foreground">
             Showing {(initialPage - 1) * PAGE_SIZE + 1}–{Math.min(initialPage * PAGE_SIZE, result.total)} of {result.total}
