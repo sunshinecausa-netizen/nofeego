@@ -16,7 +16,7 @@ export function Navbar() {
 
   return (
     <header className={`sticky top-0 z-50 w-full border-b border-border transition-all duration-200 ${scrolled ? 'bg-white/95 shadow-sm backdrop-blur-md' : 'bg-white'}`}>
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
+      <div className="flex h-16 w-full items-center justify-between gap-2 px-3 sm:px-5">
         <Link href="/" className="group flex min-w-0 items-center gap-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover:scale-105">
             <Building2 className="h-5 w-5" />
