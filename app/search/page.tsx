@@ -7,7 +7,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? '1', 10) || 1);
   const query = params.q ?? '';
-  let result: BuildingsPageResult = { buildings: [], total: 0 };
+  let result: BuildingsPageResult = { buildings: [], total: 0, inventoryByBuilding: {} };
   let error: string | null = null;
   try {
     result = await fetchBuildingsPage({ page, pageSize: PAGE_SIZE, search: query });
