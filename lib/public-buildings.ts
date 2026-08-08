@@ -7,6 +7,7 @@ export type BuildingInventorySummary = {
   availableCount: number;
   updatedAt: string | null;
   bedroomMinimums: Partial<Record<0 | 1 | 2 | 3, number>>;
+  concessionText: string | null;
 };
 
 export type BuildingsPageResult = {
@@ -147,7 +148,7 @@ export async function fetchBuildingsPage({
   const inventoryByBuilding: Record<string, BuildingInventorySummary> = {};
   if (buildings.length > 0) {
     const inventoryEndpoint = new URL('/rest/v1/inventory_snapshots', url);
-    inventoryEndpoint.searchParams.set('select', 'building_id,unit_id,rent,captured_at,units!inner(bedrooms,is_active)');
+    inventoryEndpoint.searchParams.set('select', 'building_id,unit_id,rent,concession_text,captured_at,units!inner(bedrooms,is_active)');
     inventoryEndpoint.searchParams.set('inventory_status', 'eq.available');
     inventoryEndpoint.searchParams.set('valid_until', 'is.null');
     inventoryEndpoint.searchParams.set('rent', 'gt.0');
@@ -159,7 +160,7 @@ export async function fetchBuildingsPage({
     });
     if (inventoryResponse.ok) {
       const buildingIds = new Set(buildings.map((building) => building.id));
-      type CurrentInventoryRow = { building_id: string; unit_id: string; rent: number; captured_at: string; units: { bedrooms: number | null; is_active: boolean } };
+      type CurrentInventoryRow = { building_id: string; unit_id: string; rent: number; concession_text: string | null; captured_at: string; units: { bedrooms: number | null; is_active: boolean } };
       const rows = await inventoryResponse.json() as CurrentInventoryRow[];
       const latestByUnit = new Map<string, CurrentInventoryRow>();
       for (const row of rows) {
@@ -178,6 +179,7 @@ export async function fetchBuildingsPage({
             availableCount: 1,
             updatedAt: row.captured_at,
             bedroomMinimums: bedroom != null && [0, 1, 2, 3].includes(bedroom) ? { [bedroom]: row.rent } : {},
+            concessionText: row.concession_text?.trim() || null,
           };
           continue;
         }
@@ -190,6 +192,7 @@ export async function fetchBuildingsPage({
           current.bedroomMinimums[supportedBedroom] = minimum == null ? row.rent : Math.min(minimum, row.rent);
         }
         current.availableCount += 1;
+        if (!current.concessionText && row.concession_text?.trim()) current.concessionText = row.concession_text.trim();
         if (!current.updatedAt || row.captured_at > current.updatedAt) current.updatedAt = row.captured_at;
       }
       Object.values(inventoryByBuilding).forEach((summary) => summary.bedrooms.sort((a, b) => a - b));

@@ -11,6 +11,10 @@ export type BuildingMapItem = {
   address?: string | null;
   neighborhood?: string | null;
   imageUrl?: string | null;
+  amenities?: string[] | null;
+  availableCount?: number;
+  bedroomMinimums?: Partial<Record<0 | 1 | 2 | 3, number>>;
+  concessionText?: string | null;
   latitude: number | null;
   longitude: number | null;
 };
@@ -86,7 +90,16 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       gestureHandling: 'greedy',
       scrollwheel: true,
     });
-    const infoWindow = new google.maps.InfoWindow();
+    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true });
+    let closeTimer: number | null = null;
+    const cancelClose = () => {
+      if (closeTimer != null) window.clearTimeout(closeTimer);
+      closeTimer = null;
+    };
+    const scheduleClose = () => {
+      cancelClose();
+      closeTimer = window.setTimeout(() => infoWindow.close(), 180);
+    };
     googleMapRef.current = map;
     const bounds = new google.maps.LatLngBounds();
     const markerRegistry = markersRef.current;
@@ -102,8 +115,11 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       });
 
       const openPreview = () => {
+        cancelClose();
         const content = document.createElement('div');
-        content.style.cssText = 'width:260px;padding:2px 2px 4px;';
+        content.style.cssText = 'width:290px;padding:4px 2px 6px;';
+        content.addEventListener('mouseenter', cancelClose);
+        content.addEventListener('mouseleave', scheduleClose);
         if (group.length > 1) {
           const heading = document.createElement('div');
           heading.textContent = `${group.length} buildings at this location`;
@@ -140,6 +156,45 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
           details.append(title, location, action);
           link.appendChild(details);
           content.appendChild(link);
+
+          const amenities = new Set(item.amenities ?? []);
+          const featureGrid = document.createElement('div');
+          featureGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:7px 0;';
+          const features = [
+            ['Doorman', amenities.has('Doorman')],
+            ['Pets allowed', ['Pets Allowed', 'Small Dogs Allowed', 'Large Dogs Allowed', 'Cats Allowed'].some((value) => amenities.has(value))],
+            ['In-unit laundry', amenities.has('In-Unit W/D Available')],
+          ] as const;
+          features.forEach(([label, confirmed]) => {
+            const feature = document.createElement('div');
+            feature.style.cssText = `border-radius:6px;padding:5px;background:${confirmed ? '#eef8f3' : '#f4f5f4'};color:${confirmed ? '#1a6b4f' : '#66736d'};font-size:10px;font-weight:700;line-height:1.2;`;
+            feature.textContent = `${confirmed ? '✓' : '—'} ${label}${confirmed ? '' : ' · Not verified'}`;
+            featureGrid.appendChild(feature);
+          });
+          content.appendChild(featureGrid);
+
+          const priceGrid = document.createElement('div');
+          priceGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-top:6px;';
+          const bedroomLabels = [[0, 'Studio'], [1, '1 Bed'], [2, '2 Bed'], [3, '3 Bed']] as const;
+          bedroomLabels.forEach(([bedroom, label]) => {
+            const minimum = item.bedroomMinimums?.[bedroom];
+            const price = document.createElement('div');
+            price.style.cssText = 'border-radius:6px;padding:5px 7px;background:#f4f5f4;font-size:10px;line-height:1.35;';
+            price.innerHTML = `<span style="color:#66736d">${label}</span><br><strong>${minimum != null ? `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(minimum)}` : 'Not available'}</strong>`;
+            priceGrid.appendChild(price);
+          });
+          content.appendChild(priceGrid);
+
+          const availability = document.createElement('div');
+          availability.style.cssText = 'margin-top:7px;font-size:11px;font-weight:700;color:#17201c;';
+          availability.textContent = item.availableCount ? `${item.availableCount} current ${item.availableCount === 1 ? 'unit' : 'units'} available` : 'Not available';
+          content.appendChild(availability);
+          if (item.concessionText) {
+            const concession = document.createElement('div');
+            concession.style.cssText = 'margin-top:5px;border-radius:6px;background:#fff4d8;padding:6px 8px;color:#805b00;font-size:11px;font-weight:700;';
+            concession.textContent = `Special offer: ${item.concessionText}`;
+            content.appendChild(concession);
+          }
         });
         infoWindow.setContent(content);
         infoWindow.open(map, marker);
@@ -149,7 +204,10 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         onBuildingHover?.(group[0].id);
         openPreview();
       });
-      marker.addListener('mouseout', () => onBuildingHover?.(null));
+      marker.addListener('mouseout', () => {
+        onBuildingHover?.(null);
+        scheduleClose();
+      });
       marker.addListener('click', () => {
         const focusedBuilding = group[0];
         onBuildingSelect?.(focusedBuilding.id);
@@ -167,6 +225,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     }
     return () => {
       infoWindow.close();
+      cancelClose();
       googleMapRef.current = null;
       markerRegistry.clear();
       markers.forEach((marker) => marker.setMap(null));
