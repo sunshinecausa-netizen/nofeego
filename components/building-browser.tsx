@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useState } from 'react';
+import { FormEvent, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -145,7 +145,6 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
 
   const selectBuilding = useCallback((id: string) => {
     setSelectedBuildingId(id);
-    window.requestAnimationFrame(() => document.querySelector(`[data-building-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   }, [setSelectedBuildingId]);
 
   function toggleCompare(building: Building, checked: boolean) {
@@ -188,6 +187,17 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     />
   ));
 
+  const mapItems = useMemo(() => result.buildings.map((building) => ({
+    id: building.id,
+    slug: building.slug,
+    name: building.name,
+    address: building.address,
+    neighborhood: building.neighborhood ?? building.borough,
+    imageUrl: building.hero_image_url ?? building.hero_image,
+    latitude: building.latitude,
+    longitude: building.longitude,
+  })), [result.buildings]);
+
   if (error) return <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center" role="alert"><AlertCircle className="mb-3 h-10 w-10 text-destructive" /><h1 className="mb-1 text-xl font-semibold">We couldn&apos;t load the buildings</h1><p className="mb-4 text-sm text-muted-foreground">{error}</p><Button type="button" onClick={() => window.location.reload()}>Try again</Button></div>;
   if (result.buildings.length === 0) return <><div className="px-3 pt-4 sm:px-5"><h1 className="font-serif text-2xl font-bold">Buildings</h1></div>{compactFilters}<div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center"><Building2 className="mb-3 h-10 w-10 text-muted-foreground" /><h2 className="mb-1 text-lg font-semibold">No buildings found</h2><p className="mb-4 text-sm text-muted-foreground">Try adjusting or clearing one or more filters.</p><Button asChild variant="outline"><Link href={route}>View all buildings</Link></Button></div></>;
 
@@ -200,8 +210,6 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     </div>
   );
 
-  const mapItems = result.buildings.map((building) => ({ id: building.id, slug: building.slug, name: building.name, latitude: building.latitude, longitude: building.longitude }));
-
   return (
     <div className="flex min-h-screen flex-col bg-background md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden">
       <header className="flex shrink-0 items-end justify-between gap-3 px-3 py-3 sm:px-5"><div><p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Verified New York buildings</p><h1 className="font-serif text-2xl font-bold sm:text-3xl">Buildings</h1></div><p className="text-sm text-muted-foreground">{result.total} matching buildings</p></header>
@@ -209,7 +217,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view"><Button type="button" variant={mobileView === 'map' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('map')}><Map className="mr-2 h-4 w-4" />Map</Button><Button type="button" variant={mobileView === 'list' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('list')}><List className="mr-2 h-4 w-4" />List</Button></div>
       <div className="min-h-0 flex-1 md:grid md:grid-cols-2 min-[1100px]:grid-cols-[55fr_45fr]">
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden border-r border-border md:block md:min-h-0`} aria-label="Building map panel">
-          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} onBuildingSelect={selectBuilding} className="h-full min-h-0 rounded-none border-0" />
+          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} className="h-full min-h-0 rounded-none border-0" />
         </section>
         <section className={`${mobileView === 'list' ? 'block' : 'hidden'} min-h-0 bg-muted/25 md:block md:overflow-y-auto`} aria-label="Building results list">
           <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>
