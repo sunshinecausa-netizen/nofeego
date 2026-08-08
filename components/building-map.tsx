@@ -240,7 +240,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
           position,
           zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
           icon: {
-            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="18" fill="${markerClusterColor}" stroke="${markerColor}" stroke-width="3"/></svg>`)}`,
+            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="18" fill="${markerClusterColor}"/></svg>`)}`,
             scaledSize: new google.maps.Size(42, 42),
             anchor: new google.maps.Point(21, 21),
             labelOrigin: new google.maps.Point(21, 21),
