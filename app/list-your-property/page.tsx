@@ -352,7 +352,7 @@ export default function ListYourPropertyPage() {
               <ReviewRow label="Description" value={form.description ? `${form.description.slice(0, 100)}...` : '-'} />
               <ReviewRow label="Images" value={`${form.images.filter(Boolean).length} image(s)`} />
             </div>
-            <div className="rounded-lg border border-primary/30 bg-promotion-surface p-4 text-sm text-promotion">
+            <div className="rounded-lg border border-promotion/30 bg-promotion-surface p-4 text-sm text-navy">
               <strong>Note:</strong> Your listing will be submitted as <strong>Pending</strong> and will not appear publicly until an administrator reviews and approves it.
             </div>
           </div>

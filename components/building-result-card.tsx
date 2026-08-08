@@ -91,7 +91,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           <p className="mb-1.5 flex items-center gap-1 text-[11px] text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{availabilityDate(inventory?.earliestAvailableDate)}</p>
 
           <p className="mb-1.5 text-[11px] text-muted-foreground">{inventory ? `${inventory.availableCount} current ${inventory.availableCount === 1 ? 'unit' : 'units'} available` : 'Availability not verified'}</p>
-          {inventory?.concessionText && <p className="mb-1.5 rounded-md bg-promotion-surface px-2 py-1.5 text-[11px] font-semibold text-promotion">Special offer: {inventory.concessionText}</p>}
+          {inventory?.concessionText && <p className="mb-1.5 rounded-md border border-promotion/30 bg-promotion-surface px-2 py-1.5 text-[11px] font-semibold text-navy"><span className="text-promotion">Special offer:</span> {inventory.concessionText}</p>}
 
           <div className="mb-1.5 grid grid-cols-2 gap-1">{CORE_AMENITIES.map((amenity) => { const confirmed = amenity.values.some((value) => amenities.has(value)); return <span key={amenity.label} className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium', confirmed ? 'bg-accent text-accent-foreground' : 'bg-muted/60 text-muted-foreground')}><Check className={cn('h-3 w-3 text-primary-hover', !confirmed && 'invisible')} />{amenity.label}{!confirmed && ' · Not verified'}</span>; })}</div>
 
