@@ -11,8 +11,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        serif: ['var(--font-playfair)', 'Georgia', 'serif'],
+        sans: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-display)', 'Georgia', 'serif'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -38,6 +38,16 @@ const config: Config = {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          hover: 'hsl(var(--primary-hover))',
+        },
+        navy: 'hsl(var(--navy))',
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        promotion: {
+          DEFAULT: 'hsl(var(--promotion))',
+          surface: 'hsl(var(--promotion-surface))',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
@@ -65,6 +75,14 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        DEFAULT: 'var(--shadow-sm)',
+        md: 'var(--shadow-card)',
+        lg: 'var(--shadow-card)',
+        xl: 'var(--shadow-elevated)',
+        '2xl': 'var(--shadow-elevated)',
       },
       keyframes: {
         'accordion-down': {
