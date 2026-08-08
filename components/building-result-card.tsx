@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Building2, CalendarDays, Camera, Check, Clock3, Heart, MapPin, TrainFront, Users } from 'lucide-react';
+import { Building2, CalendarDays, Camera, Check, Clock3, Heart, Home, MapPin, TrainFront, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -61,6 +61,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const subway = building.nearby_subway?.[0];
   const fullAddress = [building.address, building.city, building.state, building.zip_code].filter(Boolean).join(', ');
   const compact = variant === 'map';
+  const requestContext = new URLSearchParams({ buildingId: building.id, buildingSlug: building.slug, buildingName: building.name, neighborhood: building.neighborhood ?? building.borough ?? '', address: fullAddress }).toString();
   return (
     <article data-building-id={building.id} className={cn('group relative overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:border-primary/30 hover:shadow-md', compact ? 'max-h-[520px] w-[340px] overflow-y-auto' : 'min-h-[224px] hover:-translate-y-0.5', highlighted ? 'border-primary ring-2 ring-primary/20' : 'border-border')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClick={() => onSelect?.(building.id)}>
       <Link href={href} className="absolute inset-0 z-0" aria-label={`View ${building.name} details`} />
@@ -84,8 +85,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           <div className="mb-1.5 grid grid-cols-2 gap-1">{CORE_AMENITIES.map((amenity) => { const confirmed = amenity.values.some((value) => amenities.has(value)); return <span key={amenity.label} className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium', confirmed ? 'bg-primary/5 text-primary' : 'bg-muted/60 text-muted-foreground')}><Check className={cn('h-3 w-3', !confirmed && 'invisible')} />{amenity.label}{!confirmed && ' · Not verified'}</span>; })}</div>
 
           <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">{subway && <span className="inline-flex items-center gap-1"><TrainFront className="h-3 w-3" />{subway}</span>}{updateText && <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{updateText}</span>}</div>
-          <Link href="/shared-living" className="relative z-10 mb-2 rounded-lg bg-secondary/60 px-3 py-2 text-xs hover:bg-secondary"><span className="flex items-center gap-1 font-semibold text-foreground"><Users className="h-3.5 w-3.5" />Looking for a roommate?</span><span className="text-muted-foreground">Find someone to rent with</span></Link>
-          <div className="relative z-10 mt-auto flex items-center gap-2 border-t border-border/70 pt-2"><label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={(event) => event.stopPropagation()}><Checkbox checked={compared} onCheckedChange={(checked) => onCompareChange?.(building, checked === true)} aria-label={`Add ${building.name} to compare`} />Compare</label><Button asChild size="sm" className="ml-auto min-h-11 px-3"><Link href={`${href}?intent=request-info`} onClick={(event) => event.stopPropagation()}>Request Information</Link></Button></div>
+          <div className="relative z-10 mt-auto border-t border-border/70 pt-2"><label className="mb-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={(event) => event.stopPropagation()}><Checkbox checked={compared} onCheckedChange={(checked) => onCompareChange?.(building, checked === true)} aria-label={`Add ${building.name} to compare`} />Compare</label><div className="grid grid-cols-1 gap-2 sm:grid-cols-2"><Button asChild size="sm" className="min-h-11 whitespace-normal px-3 text-xs leading-tight"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-1 h-4 w-4 shrink-0" />Rent the Entire Place</Link></Button><Button asChild size="sm" variant="outline" className="min-h-11 whitespace-normal px-3 text-xs leading-tight"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-1 h-4 w-4 shrink-0" />Find Someone to Rent With</Link></Button></div></div>
         </div>
       </div>
     </article>
