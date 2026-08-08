@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { BuildingMap } from '@/components/building-map';
-import { BuildingResultCard } from '@/components/building-result-card';
+import { BuildingCard } from '@/components/building-result-card';
 import type { Building } from '@/lib/types';
 import type { BuildingFilters, BuildingsPageResult } from '@/lib/public-buildings';
 
@@ -108,6 +108,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [comparedBuildings, setComparedBuildings] = useState<Building[]>([]);
+  const [favoriteBuildingIds, setFavoriteBuildingIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const error = initialError;
   const route = mode === 'search' ? '/search' : '/';
@@ -165,9 +166,13 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     if (ids.length === 0) setCompareOpen(false);
   }, [result.buildings, setCompareOpen, setComparedBuildings]);
 
-  function toggleCompare(building: Building, checked: boolean) {
+  const toggleCompare = useCallback((building: Building, checked: boolean) => {
     setComparedBuildings((current) => checked ? (current.some((item) => item.id === building.id) ? current : [...current, building]) : current.filter((item) => item.id !== building.id));
-  }
+  }, [setComparedBuildings]);
+
+  const toggleFavorite = useCallback((building: Building, checked: boolean) => {
+    setFavoriteBuildingIds((current) => checked ? [...new Set([...current, building.id])] : current.filter((id) => id !== building.id));
+  }, [setFavoriteBuildingIds]);
 
   const compactFilters = (
     <form onSubmit={onSubmit} role="search" className="border-y border-border bg-white px-3 py-3 shadow-sm sm:px-5">
@@ -193,13 +198,15 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   );
 
   const resultCards = result.buildings.map((building) => (
-    <BuildingResultCard
+    <BuildingCard
       key={building.id}
       building={building}
       inventory={result.inventoryByBuilding[building.id]}
       compared={comparedBuildings.some((item) => item.id === building.id)}
+      favorited={favoriteBuildingIds.includes(building.id)}
       highlighted={selectedBuildingId === building.id || hoveredBuildingId === building.id}
       onCompareChange={toggleCompare}
+      onFavoriteChange={toggleFavorite}
       onHover={setHoveredBuildingId}
       onSelect={setSelectedBuildingId}
     />
@@ -216,6 +223,8 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     availableCount: result.inventoryByBuilding[building.id]?.availableCount,
     bedroomMinimums: result.inventoryByBuilding[building.id]?.bedroomMinimums,
     concessionText: result.inventoryByBuilding[building.id]?.concessionText,
+    building,
+    inventory: result.inventoryByBuilding[building.id],
     latitude: building.latitude,
     longitude: building.longitude,
   })), [result.buildings, result.inventoryByBuilding]);
@@ -239,7 +248,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view"><Button type="button" variant={mobileView === 'map' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('map')}><Map className="mr-2 h-4 w-4" />Map</Button><Button type="button" variant={mobileView === 'list' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('list')}><List className="mr-2 h-4 w-4" />List</Button></div>
       <div className="min-h-0 flex-1 md:grid md:grid-cols-2 min-[1100px]:grid-cols-[55fr_45fr]">
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden border-r border-border md:block md:min-h-0`} aria-label="Building map panel">
-          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} className="h-full min-h-0 rounded-none border-0" />
+          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
         </section>
         <section className={`${mobileView === 'list' ? 'block' : 'hidden'} min-h-0 bg-muted/25 md:block md:overflow-y-auto`} aria-label="Building results list">
           <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>

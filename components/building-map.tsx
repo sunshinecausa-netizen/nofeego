@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { AlertTriangle, Building2, Pencil, RotateCcw } from 'lucide-react';
+import { BuildingCard } from '@/components/building-result-card';
 import { cn } from '@/lib/utils';
+import type { BuildingInventorySummary } from '@/lib/public-buildings';
+import type { Building } from '@/lib/types';
 
 export type BuildingMapItem = {
   id: string;
@@ -15,6 +19,8 @@ export type BuildingMapItem = {
   availableCount?: number;
   bedroomMinimums?: Partial<Record<0 | 1 | 2 | 3, number>>;
   concessionText?: string | null;
+  building: Building;
+  inventory?: BuildingInventorySummary;
   latitude: number | null;
   longitude: number | null;
 };
@@ -36,13 +42,23 @@ type BuildingMapProps = {
   buildings: BuildingMapItem[];
   hoveredBuildingId?: string | null;
   selectedBuildingId?: string | null;
+  comparedBuildingIds?: string[];
+  favoriteBuildingIds?: string[];
   onBuildingSelect?: (id: string) => void;
   onBuildingHover?: (id: string | null) => void;
   onAreaSelect?: (ids: string[]) => void;
+  onCompareChange?: (building: Building, checked: boolean) => void;
+  onFavoriteChange?: (building: Building, checked: boolean) => void;
   className?: string;
 };
 
 type ScreenPoint = { x: number; y: number };
+
+function MapBuildingCard({ item, compared, favorited, onCompareChange, onFavoriteChange }: { item: BuildingMapItem; compared: boolean; favorited: boolean; onCompareChange?: (building: Building, checked: boolean) => void; onFavoriteChange?: (building: Building, checked: boolean) => void }) {
+  const [isCompared, setIsCompared] = useState(compared);
+  const [isFavorited, setIsFavorited] = useState(favorited);
+  return <BuildingCard building={item.building} inventory={item.inventory} compared={isCompared} favorited={isFavorited} variant="map" onCompareChange={(building, checked) => { setIsCompared(checked); onCompareChange?.(building, checked); }} onFavoriteChange={(building, checked) => { setIsFavorited(checked); onFavoriteChange?.(building, checked); }} />;
+}
 
 function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: number; lng: number }>) {
   let inside = false;
@@ -55,7 +71,7 @@ function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: nu
   return inside;
 }
 
-export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, onBuildingSelect, onBuildingHover, onAreaSelect, className }: BuildingMapProps) {
+export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingHover, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -63,6 +79,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   const areaPolygonsRef = useRef<google.maps.Polygon[]>([]);
   const areaBuildingIdsRef = useRef(new Set<string>());
   const drawingModeRef = useRef(false);
+  const comparedBuildingIdsRef = useRef(new Set(comparedBuildingIds));
+  const favoriteBuildingIdsRef = useRef(new Set(favoriteBuildingIds));
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
   const [loadError, setLoadError] = useState(false);
@@ -107,6 +125,9 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     if (drawingMode) infoWindowRef.current?.close();
   }, [drawingMode]);
 
+  useEffect(() => { comparedBuildingIdsRef.current = new Set(comparedBuildingIds); }, [comparedBuildingIds]);
+  useEffect(() => { favoriteBuildingIdsRef.current = new Set(favoriteBuildingIds); }, [favoriteBuildingIds]);
+
   useEffect(() => {
     if (!scriptLoaded || !mapRef.current) return;
     const map = new google.maps.Map(mapRef.current, {
@@ -119,17 +140,22 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       gestureHandling: 'greedy',
       scrollwheel: true,
     });
-    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true });
+    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 380 });
     infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
     let previewTimer: number | null = null;
+    let previewRoot: Root | null = null;
     const cancelClose = () => {
       if (closeTimer != null) window.clearTimeout(closeTimer);
       closeTimer = null;
     };
     const scheduleClose = () => {
       cancelClose();
-      closeTimer = window.setTimeout(() => infoWindow.close(), 180);
+      closeTimer = window.setTimeout(() => {
+        infoWindow.close();
+        previewRoot?.unmount();
+        previewRoot = null;
+      }, 180);
     };
     const cancelPreview = () => {
       if (previewTimer != null) window.clearTimeout(previewTimer);
@@ -158,86 +184,13 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
 
       const openPreview = () => {
         cancelClose();
+        previewRoot?.unmount();
         const content = document.createElement('div');
-        content.style.cssText = 'width:290px;padding:4px 2px 6px;';
+        content.style.cssText = 'max-height:min(620px,75vh);overflow:auto;padding:2px;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
-        if (group.length > 1) {
-          const heading = document.createElement('div');
-          heading.textContent = `${group.length} buildings at this location`;
-          heading.style.cssText = 'font-size:12px;font-weight:700;margin-bottom:6px;';
-          content.appendChild(heading);
-        }
-        group.forEach((item) => {
-          const link = document.createElement('a');
-          link.href = `/buildings/${encodeURIComponent(item.slug)}`;
-          link.setAttribute('aria-label', `View ${item.name}`);
-          link.style.cssText = 'color:#17201c;display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;padding:6px 0;text-decoration:none;';
-          if (item.imageUrl) {
-            const image = document.createElement('img');
-            image.src = item.imageUrl;
-            image.alt = '';
-            image.style.cssText = 'width:72px;height:58px;border-radius:8px;object-fit:cover;background:#eef2ef;';
-            link.appendChild(image);
-          } else {
-            const placeholder = document.createElement('div');
-            placeholder.textContent = 'Building';
-            placeholder.style.cssText = 'width:72px;height:58px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#eef2ef;color:#66736d;font-size:10px;';
-            link.appendChild(placeholder);
-          }
-          const details = document.createElement('span');
-          const title = document.createElement('strong');
-          title.textContent = item.name;
-          title.style.cssText = 'display:block;color:#1a6b4f;font-size:14px;line-height:1.25;';
-          const location = document.createElement('span');
-          location.textContent = [item.neighborhood, item.address].filter(Boolean).join(' · ');
-          location.style.cssText = 'display:block;margin-top:3px;color:#66736d;font-size:11px;line-height:1.3;';
-          const action = document.createElement('span');
-          action.textContent = 'View building →';
-          action.style.cssText = 'display:block;margin-top:5px;color:#1a6b4f;font-size:11px;font-weight:700;';
-          details.append(title, location, action);
-          link.appendChild(details);
-          content.appendChild(link);
-
-          const amenities = new Set(item.amenities ?? []);
-          const featureGrid = document.createElement('div');
-          featureGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:7px 0;';
-          const features = [
-            ['Doorman', amenities.has('Doorman')],
-            ['Pets allowed', ['Pets Allowed', 'Small Dogs Allowed', 'Large Dogs Allowed', 'Cats Allowed'].some((value) => amenities.has(value))],
-            ['In-unit laundry', amenities.has('In-Unit W/D Available')],
-          ] as const;
-          features.forEach(([label, confirmed]) => {
-            const feature = document.createElement('div');
-            feature.style.cssText = `border-radius:6px;padding:5px;background:${confirmed ? '#eef8f3' : '#f4f5f4'};color:${confirmed ? '#1a6b4f' : '#66736d'};font-size:10px;font-weight:700;line-height:1.2;`;
-            feature.textContent = `${confirmed ? '✓' : '—'} ${label}${confirmed ? '' : ' · Not verified'}`;
-            featureGrid.appendChild(feature);
-          });
-          content.appendChild(featureGrid);
-
-          const priceGrid = document.createElement('div');
-          priceGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-top:6px;';
-          const bedroomLabels = [[0, 'Studio'], [1, '1 Bed'], [2, '2 Bed'], [3, '3 Bed']] as const;
-          bedroomLabels.forEach(([bedroom, label]) => {
-            const minimum = item.bedroomMinimums?.[bedroom];
-            const price = document.createElement('div');
-            price.style.cssText = 'border-radius:6px;padding:5px 7px;background:#f4f5f4;font-size:10px;line-height:1.35;';
-            price.innerHTML = `<span style="color:#66736d">${label}</span><br><strong>${minimum != null ? `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(minimum)}` : 'Not available'}</strong>`;
-            priceGrid.appendChild(price);
-          });
-          content.appendChild(priceGrid);
-
-          const availability = document.createElement('div');
-          availability.style.cssText = 'margin-top:7px;font-size:11px;font-weight:700;color:#17201c;';
-          availability.textContent = item.availableCount ? `${item.availableCount} current ${item.availableCount === 1 ? 'unit' : 'units'} available` : 'Not available';
-          content.appendChild(availability);
-          if (item.concessionText) {
-            const concession = document.createElement('div');
-            concession.style.cssText = 'margin-top:5px;border-radius:6px;background:#fff4d8;padding:6px 8px;color:#805b00;font-size:11px;font-weight:700;';
-            concession.textContent = `Special offer: ${item.concessionText}`;
-            content.appendChild(concession);
-          }
-        });
+        previewRoot = createRoot(content);
+        previewRoot.render(<div className="space-y-2">{group.map((item) => <MapBuildingCard key={item.id} item={item} compared={comparedBuildingIdsRef.current.has(item.id)} favorited={favoriteBuildingIdsRef.current.has(item.id)} onCompareChange={onCompareChange} onFavoriteChange={onFavoriteChange} />)}</div>);
         infoWindow.setContent(content);
         infoWindow.open(map, marker);
       };
@@ -274,6 +227,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     }
     return () => {
       infoWindow.close();
+      previewRoot?.unmount();
+      previewRoot = null;
       cancelClose();
       cancelPreview();
       projectionOverlay.setMap(null);
@@ -286,7 +241,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       markerRegistry.clear();
       markers.forEach((marker) => marker.setMap(null));
     };
-  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, validBuildings]);
+  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, onCompareChange, onFavoriteChange, validBuildings]);
 
   function pointFromEvent(event: React.PointerEvent<SVGSVGElement>): ScreenPoint {
     const bounds = event.currentTarget.getBoundingClientRect();
