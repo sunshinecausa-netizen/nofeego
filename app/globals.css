@@ -12,6 +12,10 @@
     --success-foreground: 206 26% 12%;
     --promotion: 30 84% 43%;
     --promotion-surface: 36 100% 95%;
+    --map-marker: #E89024;
+    --map-marker-cluster: rgba(232, 144, 36, 0.28);
+    --map-marker-ring: #ffffff;
+    --map-marker-label: #16324F;
     --background: 60 23% 97%;
     --foreground: 206 26% 12%;
     --card: 0 0% 100%;

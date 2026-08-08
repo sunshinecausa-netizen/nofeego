@@ -28,14 +28,11 @@ export type BuildingMapItem = {
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
 const NYC_CENTER = { lat: 40.7306, lng: -73.9352 };
-const NEARBY_CATEGORIES = ['Transit', 'Grocery', 'Dining & cafés', 'Parks', 'Schools', 'Healthcare'];
-
-function NearbyLegend({ buildingCount, locationCount }: { buildingCount: number; locationCount: number }) {
+function MapResultCount({ buildingCount, locationCount }: { buildingCount: number; locationCount: number }) {
   return (
-    <div className="absolute left-3 right-56 top-3 z-10 flex flex-wrap items-center gap-1.5" aria-label="Nearby places shown on map">
-      <span className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">{buildingCount} buildings · {locationCount} locations</span>
-      {NEARBY_CATEGORIES.map((category) => <span key={category} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">{category}</span>)}
-    </div>
+    <span className="absolute left-3 top-3 z-10 rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+      {buildingCount} buildings · {locationCount} locations
+    </span>
   );
 }
 
@@ -172,12 +169,17 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     const bounds = new google.maps.LatLngBounds();
     const markerRegistry = markersRef.current;
     const areaBuildingIds = areaBuildingIdsRef.current;
+    const designTokens = getComputedStyle(document.documentElement);
+    const markerColor = designTokens.getPropertyValue('--map-marker').trim() || '#E89024';
+    const markerClusterColor = designTokens.getPropertyValue('--map-marker-cluster').trim() || 'rgba(232, 144, 36, 0.28)';
+    const markerRingColor = designTokens.getPropertyValue('--map-marker-ring').trim() || '#ffffff';
+    const markerLabelColor = designTokens.getPropertyValue('--map-marker-label').trim() || '#16324F';
     const markers = locationGroups.map((group) => {
       const [building] = group;
       const position = { lat: building.latitude!, lng: building.longitude! };
       bounds.extend(position);
       const dotRadius = group.length > 1 ? 9 : 8;
-      const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${dotRadius}" fill="#dc2626" stroke="#ffffff" stroke-width="2"/></svg>`;
+      const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${dotRadius}" fill="${markerColor}" stroke="${markerRingColor}" stroke-width="2"/></svg>`;
       const marker = new google.maps.Marker({
         map,
         position,
@@ -189,7 +191,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
           labelOrigin: new google.maps.Point(15, 15),
         },
         shape: { type: 'circle', coords: [15, 15, 14] },
-        label: group.length > 1 ? { text: String(group.length), color: '#ffffff', fontSize: '10px', fontWeight: '700' } : undefined,
+        label: group.length > 1 ? { text: String(group.length), color: markerLabelColor, fontSize: '10px', fontWeight: '700' } : undefined,
       });
 
       const openPreview = () => {
@@ -238,12 +240,12 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
           position,
           zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
           icon: {
-            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="18" fill="#1a6b4f" stroke="#ffffff" stroke-width="3"/></svg>')}`,
+            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="18" fill="${markerClusterColor}" stroke="${markerColor}" stroke-width="3"/></svg>`)}`,
             scaledSize: new google.maps.Size(42, 42),
             anchor: new google.maps.Point(21, 21),
             labelOrigin: new google.maps.Point(21, 21),
           },
-          label: { text: String(count), color: '#ffffff', fontSize: '12px', fontWeight: '700' },
+          label: { text: String(count), color: markerLabelColor, fontSize: '12px', fontWeight: '700' },
         }),
       },
     });
@@ -348,13 +350,13 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   if (!GOOGLE_MAPS_API_KEY || loadError) {
     return (
         <div className={cn('relative min-h-[420px] overflow-hidden bg-gradient-to-br from-slate-100 via-emerald-50 to-slate-200', className)}>
-        <NearbyLegend buildingCount={validBuildings.length} locationCount={locationGroups.length} />
+        <MapResultCount buildingCount={validBuildings.length} locationCount={locationGroups.length} />
         <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(26,107,79,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(26,107,79,.12) 1px,transparent 1px)', backgroundSize: '48px 48px' }} />
         {validBuildings.map((building) => {
           const x = ((building.longitude! + 74.08) / 0.3) * 100;
           const y = ((40.93 - building.latitude!) / 0.35) * 100;
           if (x < 0 || x > 100 || y < 0 || y > 100) return null;
-          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={building.name} className="group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full" style={{ left: `${x}%`, top: `${y}%` }}><span className="h-4 w-4 rounded-full border-2 border-white bg-red-600 transition-transform group-hover:scale-125" /></a>;
+          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={building.name} className="group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full" style={{ left: `${x}%`, top: `${y}%` }}><span className="h-4 w-4 rounded-full border-2 border-[var(--map-marker-ring)] bg-[var(--map-marker)] transition-transform group-hover:scale-125" /></a>;
         })}
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-white/95 px-3 py-2 text-sm shadow-sm"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" /><span>Interactive map unavailable. Building locations remain selectable in this fallback view.</span></div>
         </div>
@@ -362,7 +364,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   }
 
   return <div className={cn('relative min-h-[420px] overflow-hidden bg-muted', className)}>
-    <NearbyLegend buildingCount={validBuildings.length} locationCount={locationGroups.length} />
+    <MapResultCount buildingCount={validBuildings.length} locationCount={locationGroups.length} />
     <div className="absolute right-14 top-3 z-20 flex items-center gap-2">
       <button type="button" onClick={() => setDrawingMode((active) => !active)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold shadow-md ${drawingMode ? 'border-primary bg-primary text-white' : 'border-border bg-white text-foreground'}`} aria-pressed={drawingMode}><Pencil className="h-4 w-4" />{drawingMode ? 'Draw on map' : areaCount == null ? 'Draw area' : 'Add area'}</button>
       {areaCount != null && <><span className="rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-md">{areaTotal} {areaTotal === 1 ? 'area' : 'areas'} · {areaCount} selected</span><button type="button" onClick={clearArea} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-md"><RotateCcw className="h-4 w-4" />Clear</button></>}
