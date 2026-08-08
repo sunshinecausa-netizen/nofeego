@@ -61,6 +61,18 @@ const MORE_AMENITIES = [
   ['Playroom', 'Playroom'],
   ['Wheelchair Accessible', 'Wheelchair Accessible'],
 ] as const;
+const COMPARE_AMENITIES = [
+  ['Doorman', ['Doorman']],
+  ['Gym', ['Gym']],
+  ['In-unit laundry', ['In-Unit W/D Available']],
+  ['Pets', ['Pets Allowed', 'Small Dogs Allowed', 'Large Dogs Allowed', 'Cats Allowed']],
+  ['Parking', ['Parking']],
+  ['Pool', ['Pool', 'Indoor Pool', 'Outdoor Pool']],
+] as const;
+
+function formatStartingRent(value: number | undefined) {
+  return value == null ? 'Not available' : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
+}
 
 type Props = {
   initialPage: number;
@@ -236,7 +248,29 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       </div>
 
       {comparedBuildings.length > 0 && <>
-        {compareOpen && <div className="fixed bottom-20 left-3 right-3 z-40 max-h-[55vh] overflow-y-auto rounded-2xl border border-border bg-white p-4 shadow-2xl md:left-auto md:w-[min(720px,calc(100vw-2rem))]"><div className="mb-3 flex items-center justify-between"><h2 className="font-serif text-xl font-bold">Selected buildings</h2><Button type="button" size="icon" variant="ghost" aria-label="Close comparison preview" onClick={() => setCompareOpen(false)}><X className="h-4 w-4" /></Button></div><div className="grid gap-3 sm:grid-cols-2">{comparedBuildings.map((building) => <div key={building.id} className="rounded-xl border border-border p-3"><p className="font-semibold">{building.name}</p><p className="mb-2 text-xs text-muted-foreground">{building.neighborhood ?? building.borough ?? 'New York metro'}</p><p className="text-sm">{result.inventoryByBuilding[building.id] ? `${result.inventoryByBuilding[building.id].availableCount} units available` : 'Contact for availability'}</p><Button asChild variant="link" className="h-auto px-0"><Link href={`/buildings/${building.slug}`}>View building</Link></Button></div>)}</div><p className="mt-3 text-xs text-muted-foreground">Comparison is stored only for this page session. Persistent saved comparisons can be added later.</p></div>}
+        {compareOpen && <div role="dialog" aria-modal="true" aria-labelledby="building-comparison-title" className="fixed bottom-20 left-3 right-3 top-16 z-40 flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl md:left-1/2 md:right-auto md:top-auto md:max-h-[72vh] md:w-[min(1200px,calc(100vw-2rem))] md:-translate-x-1/2">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3"><div><h2 id="building-comparison-title" className="font-serif text-xl font-bold">Building comparison</h2><p className="text-xs text-muted-foreground">Starting base rent, current availability, and verified amenities</p></div><Button type="button" size="icon" variant="ghost" aria-label="Close comparison" onClick={() => setCompareOpen(false)}><X className="h-4 w-4" /></Button></div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <table className="w-full min-w-[1120px] border-collapse text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-muted/95 text-[10px] uppercase tracking-wide text-muted-foreground backdrop-blur"><tr><th className="min-w-52 px-3 py-2">Building</th><th className="px-3 py-2">Available</th>{['Studio', '1 Bed', '2 Bed', '3 Bed'].map((label) => <th key={label} className="min-w-28 px-3 py-2">{label}</th>)}{COMPARE_AMENITIES.map(([label]) => <th key={label} className="px-3 py-2 text-center">{label}</th>)}<th className="px-3 py-2"><span className="sr-only">Actions</span></th></tr></thead>
+              <tbody>{comparedBuildings.map((building) => {
+                const inventory = result.inventoryByBuilding[building.id];
+                const amenities = new Set(building.amenities ?? []);
+                return <tr key={building.id} className="border-t border-border align-middle hover:bg-muted/30">
+                  <td className="px-3 py-3"><Link href={`/buildings/${building.slug}`} className="font-semibold text-primary hover:underline">{building.name}</Link><p className="mt-0.5 text-[11px] text-muted-foreground">{building.neighborhood ?? building.borough ?? 'New York metro'}</p></td>
+                  <td className="whitespace-nowrap px-3 py-3 font-medium">{inventory ? `${inventory.availableCount} ${inventory.availableCount === 1 ? 'unit' : 'units'}` : 'Not available'}</td>
+                  {([0, 1, 2, 3] as const).map((bedroom) => <td key={bedroom} className="whitespace-nowrap px-3 py-3 font-semibold">{formatStartingRent(inventory?.bedroomMinimums[bedroom])}</td>)}
+                  {COMPARE_AMENITIES.map(([label, values]) => {
+                    const confirmed = values.some((value) => amenities.has(value));
+                    return <td key={label} className={`px-3 py-3 text-center font-bold ${confirmed ? 'text-primary' : 'text-muted-foreground'}`} aria-label={`${label}: ${confirmed ? 'Verified' : 'Not verified'}`}>{confirmed ? 'Yes' : '—'}</td>;
+                  })}
+                  <td className="px-3 py-3"><Button type="button" size="icon" variant="ghost" aria-label={`Remove ${building.name} from comparison`} onClick={() => toggleCompare(building, false)}><X className="h-4 w-4" /></Button></td>
+                </tr>;
+              })}</tbody>
+            </table>
+          </div>
+          <p className="shrink-0 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">A dash means the amenity is not verified; it does not mean the building lacks it. Comparison is stored for this page session.</p>
+        </div>}
         <div className="fixed bottom-3 left-1/2 z-40 flex w-[min(680px,calc(100vw-1.5rem))] -translate-x-1/2 items-center gap-3 rounded-2xl border border-primary/20 bg-white px-3 py-2 shadow-2xl"><GitCompareArrows className="h-5 w-5 shrink-0 text-primary" /><p className="min-w-0 flex-1 truncate text-sm font-semibold">{comparedBuildings.length} selected</p><Button type="button" variant="ghost" className="min-h-11" onClick={() => { setComparedBuildings([]); setCompareOpen(false); }}>Clear</Button><Button type="button" className="min-h-11" onClick={() => setCompareOpen((open) => !open)}>Compare</Button></div>
       </>}
     </div>
