@@ -110,10 +110,12 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const [comparedBuildings, setComparedBuildings] = useState<Building[]>([]);
   const [favoriteBuildingIds, setFavoriteBuildingIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [hoveredBorough, setHoveredBorough] = useState<string>(starting.boroughs[0] ?? 'Manhattan');
   const error = initialError;
   const route = mode === 'search' ? '/search' : '/';
   const pageCount = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
-  const activeFilterCount = [starting.search, starting.priceRange, starting.bedrooms, starting.bathrooms, starting.moveInFlex !== 'flexible' ? starting.moveInFlex : '', DATE_SPECIFIC_MOVE_IN_OPTIONS.has(starting.moveInFlex) ? starting.moveInDate : ''].filter(Boolean).length + starting.boroughs.length + starting.neighborhoods.length + starting.amenities.length;
+  const activeFilterCount = [query, priceRange, bedrooms, bathrooms, moveInFlex !== 'flexible' ? moveInFlex : '', DATE_SPECIFIC_MOVE_IN_OPTIONS.has(moveInFlex) ? moveInDate : ''].filter(Boolean).length + boroughs.length + neighborhoods.length + amenities.length;
 
   function href(page: number, values: BuildingFilters = starting) {
     const params = new URLSearchParams();
@@ -143,17 +145,46 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     setNeighborhoods((current) => checked ? [...new Set([...current, value])] : current.filter((item) => item !== value));
   }
 
-  function toggleNeighborhoodGroup(options: ReadonlyArray<NeighborhoodOption>, checked: boolean) {
-    const groupValues = new Set(options.map(([value]) => value));
-    setNeighborhoods((current) => checked ? [...new Set([...current, ...groupValues])] : current.filter((item) => !groupValues.has(item)));
-  }
-
   function toggleBorough(value: string, checked: boolean) {
     setBoroughs((current) => checked ? [...new Set([...current, value])] : current.filter((item) => item !== value));
     if (!checked) {
       const hiddenNeighborhoods = new Set(NEIGHBORHOOD_GROUPS.filter((group) => group.borough === value).flatMap((group) => group.options.map(([option]) => option)));
       setNeighborhoods((current) => current.filter((item) => !hiddenNeighborhoods.has(item)));
     }
+  }
+
+  function clearDraftFilters() {
+    setQuery('');
+    setBoroughs([]);
+    setNeighborhoods([]);
+    setAmenities([]);
+    setPriceRange('');
+    setBedrooms('');
+    setBathrooms('');
+    setMoveInDate('');
+    setMoveInFlex('flexible');
+  }
+
+  const draftTags = [
+    ...(query.trim() ? [{ type: 'search', value: query.trim(), label: `Search: ${query.trim()}` }] : []),
+    ...boroughs.map((value) => ({ type: 'borough', value, label: value })),
+    ...neighborhoods.map((value) => ({ type: 'neighborhood', value, label: value })),
+    ...(priceRange ? [{ type: 'price', value: priceRange, label: PRICE_RANGES.find(([value]) => value === priceRange)?.[1] ?? priceRange }] : []),
+    ...(bedrooms ? [{ type: 'bedrooms', value: bedrooms, label: `${bedrooms}+ beds` }] : []),
+    ...(bathrooms ? [{ type: 'bathrooms', value: bathrooms, label: `${bathrooms}+ baths` }] : []),
+    ...(moveInFlex !== 'flexible' ? [{ type: 'moveIn', value: moveInFlex, label: 'Move-in selected' }] : []),
+    ...amenities.map((value) => ({ type: 'amenity', value, label: [...PRIMARY_AMENITIES, ...PET_OPTIONS, ...MORE_AMENITIES].find(([key]) => key === value)?.[1] ?? value })),
+  ];
+
+  function removeDraftTag(type: string, value: string) {
+    if (type === 'search') setQuery('');
+    else if (type === 'borough') toggleBorough(value, false);
+    else if (type === 'neighborhood') toggleNeighborhood(value, false);
+    else if (type === 'price') setPriceRange('');
+    else if (type === 'bedrooms') setBedrooms('');
+    else if (type === 'bathrooms') setBathrooms('');
+    else if (type === 'moveIn') { setMoveInFlex('flexible'); setMoveInDate(''); }
+    else if (type === 'amenity') toggleAmenity(value, false);
   }
 
   const selectBuilding = useCallback((id: string) => {
@@ -176,24 +207,32 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
 
   const compactFilters = (
     <form onSubmit={onSubmit} role="search" className="border-y border-border bg-white px-3 py-3 shadow-sm sm:px-5">
-      <div className="flex max-w-6xl flex-wrap items-end gap-2">
+      <div className="flex items-center gap-2 md:hidden"><Button type="button" variant="outline" className="flex-1 justify-between" onClick={() => setMobileFiltersOpen(true)}>Filters {draftTags.length > 0 && <Badge variant="secondary">{draftTags.length}</Badge>}</Button><Button type="submit"><Search className="mr-2 h-4 w-4" />Apply</Button></div>
+      <div className={`${mobileFiltersOpen ? 'fixed inset-x-0 bottom-0 top-12 z-[70] overflow-y-auto rounded-t-2xl border bg-white p-4 shadow-2xl' : 'hidden'} md:static md:block md:overflow-visible md:border-0 md:p-0 md:shadow-none`}>
+      <div className="mb-4 flex items-center justify-between md:hidden"><h2 className="font-serif text-xl font-bold">Filters</h2><Button type="button" size="icon" variant="ghost" aria-label="Close filters" onClick={() => setMobileFiltersOpen(false)}><X className="h-5 w-5" /></Button></div>
+      <div className="flex flex-wrap items-end gap-2">
         <div className="w-full sm:w-64"><label htmlFor="building-search" className="mb-1 block text-xs font-medium text-muted-foreground">Search</label><Input id="building-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Building, address, neighborhood" /></div>
-        <details className="group relative w-[170px]"><summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-md border border-input bg-background px-3 text-sm"><span>Borough{boroughs.length > 0 ? ` (${boroughs.length})` : ''}</span><ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary><div className="absolute left-0 top-12 z-40 w-64 rounded-xl border border-border bg-white p-2 shadow-xl">{BOROUGHS.map((borough) => <label key={borough} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={boroughs.includes(borough)} onCheckedChange={(checked) => toggleBorough(borough, checked === true)} />{borough}</label>)}</div></details>
+        <details className="group relative min-w-36 flex-1"><summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-md border border-input bg-background px-3 text-sm"><span>Borough{boroughs.length > 0 ? ` (${boroughs.length})` : ''}</span><ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary><div className="mt-2 grid rounded-xl border border-border bg-white shadow-xl md:absolute md:left-0 md:top-10 md:z-40 md:mt-0 md:w-[620px] md:grid-cols-[180px_1fr]"><div className="border-b p-2 md:border-b-0 md:border-r">{BOROUGHS.map((borough) => <label key={borough} onMouseEnter={() => setHoveredBorough(borough)} onFocus={() => setHoveredBorough(borough)} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm ${hoveredBorough === borough ? 'bg-muted' : 'hover:bg-muted/60'}`}><Checkbox checked={boroughs.includes(borough)} onCheckedChange={(checked) => toggleBorough(borough, checked === true)} />{borough}</label>)}</div><div className="max-h-72 overflow-y-auto p-3">{NEIGHBORHOOD_GROUPS.filter((group) => group.borough === hoveredBorough).map((group) => <section key={group.title} className="mb-3"><p className="mb-1 text-xs font-bold uppercase tracking-wide text-primary">{group.title}</p>{group.options.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={neighborhoods.includes(value)} onCheckedChange={(checked) => toggleNeighborhood(value, checked === true)} />{label}</label>)}</section>)}</div></div></details>
+        <details className="group relative min-w-40 flex-1"><summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-md border border-input bg-background px-3 text-sm"><span>Neighborhood{neighborhoods.length > 0 ? ` (${neighborhoods.length})` : ''}</span><ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary><div className="mt-2 max-h-80 overflow-y-auto rounded-xl border border-border bg-white p-3 shadow-xl md:absolute md:left-0 md:top-10 md:z-40 md:mt-0 md:w-[650px] md:grid md:grid-cols-2">{NEIGHBORHOOD_GROUPS.map((group) => <section key={`${group.borough}:${group.title}`} className="mb-3"><p className="mb-1 text-xs font-bold uppercase tracking-wide text-primary">{group.title}</p>{group.options.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={neighborhoods.includes(value)} onCheckedChange={(checked) => toggleNeighborhood(value, checked === true)} />{label}</label>)}</section>)}</div></details>
         <div className="w-36"><label htmlFor="price-range" className="mb-1 block text-xs font-medium text-muted-foreground">Price</label><select id="price-range" value={priceRange} onChange={(event) => setPriceRange(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any price</option>{PRICE_RANGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
         <div className="w-28"><label htmlFor="bedrooms" className="mb-1 block text-xs font-medium text-muted-foreground">Bedrooms</label><select id="bedrooms" value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any</option>{Array.from({ length: 5 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}+</option>)}</select></div>
         <div className="w-28"><label htmlFor="bathrooms" className="mb-1 block text-xs font-medium text-muted-foreground">Bathrooms</label><select id="bathrooms" value={bathrooms} onChange={(event) => setBathrooms(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any</option>{Array.from({ length: 5 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}+</option>)}</select></div>
         <div className="w-48"><label htmlFor="move-in-flex" className="mb-1 block text-xs font-medium text-muted-foreground">Move-in</label><select id="move-in-flex" value={moveInFlex} onChange={(event) => setMoveInFlex(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="flexible">Flexible</option><option value="this_month">ASAP this month</option><option value="end_this_month">End of this month</option><option value="early_next_month">Early next month</option><option value="middle_next_month">Middle of next month</option><option value="end_next_month">End of next month</option><option value="exact">Exact date</option><option value="exact_7">Exact date ±7 days</option><option value="exact_15">Exact date ±15 days</option></select></div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+        {[['In-Unit W/D Available', 'In-Unit W/D'], ['Pets Allowed', 'Pets'], ['Gym', 'Gym'], ['Outdoor Space', 'Private Outdoor Space'], ['Elevator', 'Elevator'], ['Doorman', 'Doorman']].map(([value, label]) => <button key={value} type="button" aria-pressed={amenities.includes(value)} onClick={() => toggleAmenity(value, !amenities.includes(value))} className={`min-h-10 rounded-md border px-3 text-sm font-medium ${amenities.includes(value) ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background hover:border-primary/50'}`}>{label}</button>)}
         <details className="group relative">
           <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-bold uppercase tracking-wide text-primary"><SlidersHorizontal className="h-4 w-4" />More filters{activeFilterCount > 0 && <Badge variant="secondary">{activeFilterCount}</Badge>}<ChevronDown className="h-4 w-4 transition group-open:rotate-180" /></summary>
-          <div className="absolute right-0 top-12 z-40 max-h-[60vh] w-[min(92vw,900px)] space-y-4 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-xl">
-          {NEIGHBORHOOD_GROUPS.filter((group) => boroughs.includes(group.borough)).map((group) => <section key={`${group.borough}:${group.title}`} className="border-t border-border/60 pt-3"><label className="mb-2 flex min-h-10 cursor-pointer items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary"><Checkbox checked={group.options.every(([value]) => neighborhoods.includes(value))} onCheckedChange={(checked) => toggleNeighborhoodGroup(group.options, checked === true)} />{group.title}</label><div className="grid gap-1 sm:grid-cols-3 lg:grid-cols-5">{group.options.map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={neighborhoods.includes(value)} onCheckedChange={(checked) => toggleNeighborhood(value, checked === true)} />{label}</label>)}</div></section>)}
+          <div className="mt-2 max-h-[60vh] w-full space-y-4 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-xl md:absolute md:right-0 md:top-10 md:z-40 md:mt-0 md:w-[min(92vw,900px)]">
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Amenities</legend><div className="grid gap-1 sm:grid-cols-3 lg:grid-cols-5">{[...PRIMARY_AMENITIES, ...PET_OPTIONS, ...MORE_AMENITIES].map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
-          {activeFilterCount > 0 && <div className="flex justify-end"><Button asChild type="button" variant="outline"><Link href={route}><X className="mr-2 h-4 w-4" />Clear filters</Link></Button></div>}
           </div>
         </details>
         <Button type="submit" className="min-h-10"><Search className="mr-2 h-4 w-4" />Apply</Button>
       </div>
       {DATE_SPECIFIC_MOVE_IN_OPTIONS.has(moveInFlex) && <div className="mt-2 max-w-52"><label htmlFor="move-in-date" className="mb-1 block text-xs text-muted-foreground">Move-in date</label><Input id="move-in-date" type="date" value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} /></div>}
+      <div className="sticky bottom-0 mt-4 grid grid-cols-2 gap-3 border-t bg-white py-3 md:hidden"><Button type="button" variant="outline" onClick={clearDraftFilters}>Clear All</Button><Button type="submit">Apply</Button></div>
+      </div>
+      {draftTags.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Selected filters">{draftTags.map((tag) => <Badge key={`${tag.type}:${tag.value}`} variant="secondary" className="gap-1 py-1 pl-2 pr-1">{tag.label}<button type="button" onClick={() => removeDraftTag(tag.type, tag.value)} aria-label={`Remove ${tag.label}`} className="rounded-full p-0.5 hover:bg-black/10"><X className="h-3 w-3" /></button></Badge>)}<Button type="button" variant="ghost" size="sm" onClick={clearDraftFilters}>Clear All</Button></div>}
     </form>
   );
 
