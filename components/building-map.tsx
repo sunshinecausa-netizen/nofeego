@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Building2 } from 'lucide-react';
+import { AlertTriangle, Building2, Pencil, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type BuildingMapItem = {
@@ -38,15 +38,37 @@ type BuildingMapProps = {
   selectedBuildingId?: string | null;
   onBuildingSelect?: (id: string) => void;
   onBuildingHover?: (id: string | null) => void;
+  onAreaSelect?: (ids: string[]) => void;
   className?: string;
 };
 
-export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, onBuildingSelect, onBuildingHover, className }: BuildingMapProps) {
+type ScreenPoint = { x: number; y: number };
+
+function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: number; lng: number }>) {
+  let inside = false;
+  for (let index = 0, previous = area.length - 1; index < area.length; previous = index++) {
+    const currentPoint = area[index];
+    const previousPoint = area[previous];
+    if ((currentPoint.lat > point.lat) !== (previousPoint.lat > point.lat)
+      && point.lng < ((previousPoint.lng - currentPoint.lng) * (point.lat - currentPoint.lat)) / (previousPoint.lat - currentPoint.lat) + currentPoint.lng) inside = !inside;
+  }
+  return inside;
+}
+
+export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, onBuildingSelect, onBuildingHover, onAreaSelect, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const projectionOverlayRef = useRef<google.maps.OverlayView | null>(null);
+  const areaPolygonRef = useRef<google.maps.Polygon | null>(null);
+  const drawingModeRef = useRef(false);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
   const [loadError, setLoadError] = useState(false);
+  const [drawingMode, setDrawingMode] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [screenPath, setScreenPath] = useState<ScreenPoint[]>([]);
+  const [areaCount, setAreaCount] = useState<number | null>(null);
   const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null), [buildings]);
   const locationGroups = useMemo(() => Array.from(validBuildings.reduce((groups, building) => {
     const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
@@ -79,6 +101,11 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   }, [scriptLoaded, loadError]);
 
   useEffect(() => {
+    drawingModeRef.current = drawingMode;
+    if (drawingMode) infoWindowRef.current?.close();
+  }, [drawingMode]);
+
+  useEffect(() => {
     if (!scriptLoaded || !mapRef.current) return;
     const map = new google.maps.Map(mapRef.current, {
       center: NYC_CENTER,
@@ -91,7 +118,9 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       scrollwheel: true,
     });
     const infoWindow = new google.maps.InfoWindow({ headerDisabled: true });
+    infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
+    let previewTimer: number | null = null;
     const cancelClose = () => {
       if (closeTimer != null) window.clearTimeout(closeTimer);
       closeTimer = null;
@@ -100,7 +129,17 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       cancelClose();
       closeTimer = window.setTimeout(() => infoWindow.close(), 180);
     };
+    const cancelPreview = () => {
+      if (previewTimer != null) window.clearTimeout(previewTimer);
+      previewTimer = null;
+    };
     googleMapRef.current = map;
+    const projectionOverlay = new google.maps.OverlayView();
+    projectionOverlay.onAdd = () => undefined;
+    projectionOverlay.draw = () => undefined;
+    projectionOverlay.onRemove = () => undefined;
+    projectionOverlay.setMap(map);
+    projectionOverlayRef.current = projectionOverlay;
     const bounds = new google.maps.LatLngBounds();
     const markerRegistry = markersRef.current;
     const markers = locationGroups.map((group) => {
@@ -201,14 +240,21 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       };
 
       marker.addListener('mouseover', () => {
-        onBuildingHover?.(group[0].id);
-        openPreview();
+        if (drawingModeRef.current) return;
+        cancelPreview();
+        previewTimer = window.setTimeout(() => {
+          if (drawingModeRef.current) return;
+          onBuildingHover?.(group[0].id);
+          openPreview();
+        }, 450);
       });
       marker.addListener('mouseout', () => {
+        cancelPreview();
         onBuildingHover?.(null);
         scheduleClose();
       });
       marker.addListener('click', () => {
+        if (drawingModeRef.current) return;
         const focusedBuilding = group[0];
         onBuildingSelect?.(focusedBuilding.id);
         openPreview();
@@ -226,11 +272,67 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     return () => {
       infoWindow.close();
       cancelClose();
+      cancelPreview();
+      projectionOverlay.setMap(null);
+      projectionOverlayRef.current = null;
+      areaPolygonRef.current?.setMap(null);
+      areaPolygonRef.current = null;
+      infoWindowRef.current = null;
       googleMapRef.current = null;
       markerRegistry.clear();
       markers.forEach((marker) => marker.setMap(null));
     };
   }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, validBuildings]);
+
+  function pointFromEvent(event: React.PointerEvent<SVGSVGElement>): ScreenPoint {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+  }
+
+  function startArea(event: React.PointerEvent<SVGSVGElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    areaPolygonRef.current?.setMap(null);
+    areaPolygonRef.current = null;
+    setAreaCount(null);
+    onAreaSelect?.([]);
+    setScreenPath([pointFromEvent(event)]);
+    setDrawing(true);
+  }
+
+  function continueArea(event: React.PointerEvent<SVGSVGElement>) {
+    if (!drawing) return;
+    const next = pointFromEvent(event);
+    setScreenPath((path) => {
+      const previous = path[path.length - 1];
+      return previous && Math.hypot(next.x - previous.x, next.y - previous.y) < 5 ? path : [...path, next];
+    });
+  }
+
+  function finishArea(event: React.PointerEvent<SVGSVGElement>) {
+    if (!drawing) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    setDrawing(false);
+    const projection = projectionOverlayRef.current?.getProjection();
+    if (!projection || screenPath.length < 3) return;
+    const area = screenPath.map((point) => projection.fromContainerPixelToLatLng(new google.maps.Point(point.x, point.y))?.toJSON()).filter((point): point is google.maps.LatLngLiteral => Boolean(point));
+    if (area.length < 3) return;
+    areaPolygonRef.current?.setMap(null);
+    areaPolygonRef.current = new google.maps.Polygon({ map: googleMapRef.current, paths: area, strokeColor: '#1a6b4f', strokeOpacity: 0.95, strokeWeight: 3, fillColor: '#1a6b4f', fillOpacity: 0.14, clickable: false });
+    const ids = validBuildings.filter((building) => isInsideArea({ lat: building.latitude!, lng: building.longitude! }, area)).map((building) => building.id);
+    setAreaCount(ids.length);
+    onAreaSelect?.(ids);
+    setDrawingMode(false);
+    setScreenPath([]);
+  }
+
+  function clearArea() {
+    areaPolygonRef.current?.setMap(null);
+    areaPolygonRef.current = null;
+    setAreaCount(null);
+    setScreenPath([]);
+    setDrawingMode(false);
+    onAreaSelect?.([]);
+  }
 
   useEffect(() => {
     if (!selectedBuildingId) return;
@@ -269,5 +371,15 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     );
   }
 
-  return <div className={cn('relative min-h-[420px] overflow-hidden bg-muted', className)}><NearbyLegend buildingCount={validBuildings.length} locationCount={locationGroups.length} /><div ref={mapRef} className="h-full min-h-[420px] w-full" aria-label="Building results map" /></div>;
+  return <div className={cn('relative min-h-[420px] overflow-hidden bg-muted', className)}>
+    <NearbyLegend buildingCount={validBuildings.length} locationCount={locationGroups.length} />
+    <div className="absolute bottom-7 left-3 z-20 flex items-center gap-2">
+      <button type="button" onClick={() => setDrawingMode((active) => !active)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold shadow-md ${drawingMode ? 'border-primary bg-primary text-white' : 'border-border bg-white text-foreground'}`} aria-pressed={drawingMode}><Pencil className="h-4 w-4" />{drawingMode ? 'Draw on map' : 'Draw area'}</button>
+      {areaCount != null && <><span className="rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-md">{areaCount} selected</span><button type="button" onClick={clearArea} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-md"><RotateCcw className="h-4 w-4" />Clear</button></>}
+    </div>
+    <div ref={mapRef} className="h-full min-h-[420px] w-full" aria-label="Building results map" />
+    {drawingMode && <svg className="absolute inset-0 z-10 h-full w-full cursor-crosshair touch-none" onPointerDown={startArea} onPointerMove={continueArea} onPointerUp={finishArea} onPointerCancel={() => { setDrawing(false); setScreenPath([]); }} aria-label="Draw a free-form search area">
+      {screenPath.length > 1 && <polyline points={screenPath.map((point) => `${point.x},${point.y}`).join(' ')} fill="rgba(26,107,79,.14)" stroke="#1a6b4f" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
+    </svg>}
+  </div>;
 }
