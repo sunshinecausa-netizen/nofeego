@@ -25,7 +25,7 @@ const NEARBY_CATEGORIES = ['Transit', 'Grocery', 'Dining & cafés', 'Parks', 'Sc
 
 function NearbyLegend({ buildingCount, locationCount }: { buildingCount: number; locationCount: number }) {
   return (
-    <div className="absolute left-3 right-14 top-3 z-10 flex flex-wrap items-center gap-1.5" aria-label="Nearby places shown on map">
+    <div className="absolute left-3 right-56 top-3 z-10 flex flex-wrap items-center gap-1.5" aria-label="Nearby places shown on map">
       <span className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">{buildingCount} buildings · {locationCount} locations</span>
       {NEARBY_CATEGORIES.map((category) => <span key={category} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">{category}</span>)}
     </div>
@@ -373,8 +373,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
 
   return <div className={cn('relative min-h-[420px] overflow-hidden bg-muted', className)}>
     <NearbyLegend buildingCount={validBuildings.length} locationCount={locationGroups.length} />
-    <div className="absolute bottom-7 left-3 z-20 flex items-center gap-2">
-      <button type="button" onClick={() => setDrawingMode((active) => !active)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold shadow-md ${drawingMode ? 'border-primary bg-primary text-white' : 'border-border bg-white text-foreground'}`} aria-pressed={drawingMode}><Pencil className="h-4 w-4" />{drawingMode ? 'Draw on map' : 'Draw area'}</button>
+    <div className="absolute right-14 top-3 z-20 flex items-center gap-2">
+      {areaCount == null && <button type="button" onClick={() => setDrawingMode((active) => !active)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold shadow-md ${drawingMode ? 'border-primary bg-primary text-white' : 'border-border bg-white text-foreground'}`} aria-pressed={drawingMode}><Pencil className="h-4 w-4" />{drawingMode ? 'Draw on map' : 'Draw area'}</button>}
       {areaCount != null && <><span className="rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-md">{areaCount} selected</span><button type="button" onClick={clearArea} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-md"><RotateCcw className="h-4 w-4" />Clear</button></>}
     </div>
     <div ref={mapRef} className="h-full min-h-[420px] w-full" aria-label="Building results map" />
