@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
 import { BuildingCard } from '@/components/building-result-card';
 import { cn } from '@/lib/utils';
@@ -176,7 +177,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       const position = { lat: building.latitude!, lng: building.longitude! };
       bounds.extend(position);
       const dotRadius = group.length > 1 ? 9 : 8;
-      const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${dotRadius}" fill="#dc2626"/></svg>`;
+      const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${dotRadius}" fill="#dc2626" stroke="#ffffff" stroke-width="2"/></svg>`;
       const marker = new google.maps.Marker({
         map,
         position,
@@ -229,6 +230,23 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       group.forEach((item) => markerRegistry.set(item.id, marker));
       return marker;
     });
+    const markerClusterer = new MarkerClusterer({
+      map,
+      markers,
+      renderer: {
+        render: ({ count, position }) => new google.maps.Marker({
+          position,
+          zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
+          icon: {
+            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42"><circle cx="21" cy="21" r="18" fill="#1a6b4f" stroke="#ffffff" stroke-width="3"/></svg>')}`,
+            scaledSize: new google.maps.Size(42, 42),
+            anchor: new google.maps.Point(21, 21),
+            labelOrigin: new google.maps.Point(21, 21),
+          },
+          label: { text: String(count), color: '#ffffff', fontSize: '12px', fontWeight: '700' },
+        }),
+      },
+    });
     if (validBuildings.length > 1) map.fitBounds(bounds, 56);
     else if (validBuildings.length === 1) {
       map.setCenter({ lat: validBuildings[0].latitude!, lng: validBuildings[0].longitude! });
@@ -248,6 +266,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       infoWindowRef.current = null;
       googleMapRef.current = null;
       markerRegistry.clear();
+      markerClusterer.clearMarkers();
       markers.forEach((marker) => marker.setMap(null));
     };
   }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, onCompareChange, onFavoriteChange, validBuildings]);
@@ -335,7 +354,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
           const x = ((building.longitude! + 74.08) / 0.3) * 100;
           const y = ((40.93 - building.latitude!) / 0.35) * 100;
           if (x < 0 || x > 100 || y < 0 || y > 100) return null;
-          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={building.name} className="group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full" style={{ left: `${x}%`, top: `${y}%` }}><span className="h-4 w-4 rounded-full bg-red-600 transition-transform group-hover:scale-125" /></a>;
+          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={building.name} className="group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full" style={{ left: `${x}%`, top: `${y}%` }}><span className="h-4 w-4 rounded-full border-2 border-white bg-red-600 transition-transform group-hover:scale-125" /></a>;
         })}
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-white/95 px-3 py-2 text-sm shadow-sm"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" /><span>Interactive map unavailable. Building locations remain selectable in this fallback view.</span></div>
         </div>
