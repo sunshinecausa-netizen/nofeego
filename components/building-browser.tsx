@@ -227,7 +227,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Amenities</legend><div className="grid gap-1 sm:grid-cols-3 lg:grid-cols-5">{[...PRIMARY_AMENITIES, ...PET_OPTIONS, ...MORE_AMENITIES].map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
           </div>
         </details>
-        <Button type="submit" className="col-start-2 h-10 justify-self-stretch px-5 text-sm md:col-start-4 md:justify-self-end"><Search className="mr-1.5 h-4 w-4" />Apply</Button>
+        <Button type="submit" className="col-start-2 h-10 w-full justify-start px-3 text-sm md:col-start-4"><Search className="mr-1.5 h-4 w-4" />Search</Button>
       </div>
       {DATE_SPECIFIC_MOVE_IN_OPTIONS.has(moveInFlex) && <div className="mt-2 max-w-52"><label htmlFor="move-in-date" className="mb-1 block text-xs text-muted-foreground">Move-in date</label><Input id="move-in-date" type="date" value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} /></div>}
       <div className="sticky bottom-0 mt-4 grid grid-cols-2 gap-3 border-t bg-white py-3 md:hidden"><Button type="button" variant="outline" onClick={clearDraftFilters}>Clear All</Button><Button type="submit">Apply</Button></div>
