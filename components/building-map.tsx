@@ -60,7 +60,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const projectionOverlayRef = useRef<google.maps.OverlayView | null>(null);
-  const areaPolygonRef = useRef<google.maps.Polygon | null>(null);
+  const areaPolygonsRef = useRef<google.maps.Polygon[]>([]);
+  const areaBuildingIdsRef = useRef(new Set<string>());
   const drawingModeRef = useRef(false);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
@@ -69,6 +70,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   const [drawing, setDrawing] = useState(false);
   const [screenPath, setScreenPath] = useState<ScreenPoint[]>([]);
   const [areaCount, setAreaCount] = useState<number | null>(null);
+  const [areaTotal, setAreaTotal] = useState(0);
   const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null), [buildings]);
   const locationGroups = useMemo(() => Array.from(validBuildings.reduce((groups, building) => {
     const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
@@ -142,6 +144,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     projectionOverlayRef.current = projectionOverlay;
     const bounds = new google.maps.LatLngBounds();
     const markerRegistry = markersRef.current;
+    const areaBuildingIds = areaBuildingIdsRef.current;
     const markers = locationGroups.map((group) => {
       const [building] = group;
       const position = { lat: building.latitude!, lng: building.longitude! };
@@ -275,8 +278,9 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       cancelPreview();
       projectionOverlay.setMap(null);
       projectionOverlayRef.current = null;
-      areaPolygonRef.current?.setMap(null);
-      areaPolygonRef.current = null;
+      areaPolygonsRef.current.forEach((polygon) => polygon.setMap(null));
+      areaPolygonsRef.current = [];
+      areaBuildingIds.clear();
       infoWindowRef.current = null;
       googleMapRef.current = null;
       markerRegistry.clear();
@@ -291,10 +295,6 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
 
   function startArea(event: React.PointerEvent<SVGSVGElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
-    areaPolygonRef.current?.setMap(null);
-    areaPolygonRef.current = null;
-    setAreaCount(null);
-    onAreaSelect?.([]);
     setScreenPath([pointFromEvent(event)]);
     setDrawing(true);
   }
@@ -316,19 +316,26 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     if (!projection || screenPath.length < 3) return;
     const area = screenPath.map((point) => projection.fromContainerPixelToLatLng(new google.maps.Point(point.x, point.y))?.toJSON()).filter((point): point is google.maps.LatLngLiteral => Boolean(point));
     if (area.length < 3) return;
-    areaPolygonRef.current?.setMap(null);
-    areaPolygonRef.current = new google.maps.Polygon({ map: googleMapRef.current, paths: area, strokeColor: '#1a6b4f', strokeOpacity: 0.95, strokeWeight: 3, fillColor: '#1a6b4f', fillOpacity: 0.14, clickable: false });
+    const colors = ['#1a6b4f', '#2563eb', '#9333ea', '#d97706', '#dc2626'];
+    const color = colors[areaPolygonsRef.current.length % colors.length];
+    const polygon = new google.maps.Polygon({ map: googleMapRef.current, paths: area, strokeColor: color, strokeOpacity: 0.95, strokeWeight: 3, fillColor: color, fillOpacity: 0.14, clickable: false });
+    areaPolygonsRef.current.push(polygon);
     const ids = validBuildings.filter((building) => isInsideArea({ lat: building.latitude!, lng: building.longitude! }, area)).map((building) => building.id);
-    setAreaCount(ids.length);
-    onAreaSelect?.(ids);
+    ids.forEach((id) => areaBuildingIdsRef.current.add(id));
+    const combinedIds = [...areaBuildingIdsRef.current];
+    setAreaTotal(areaPolygonsRef.current.length);
+    setAreaCount(combinedIds.length);
+    onAreaSelect?.(combinedIds);
     setDrawingMode(false);
     setScreenPath([]);
   }
 
   function clearArea() {
-    areaPolygonRef.current?.setMap(null);
-    areaPolygonRef.current = null;
+    areaPolygonsRef.current.forEach((polygon) => polygon.setMap(null));
+    areaPolygonsRef.current = [];
+    areaBuildingIdsRef.current.clear();
     setAreaCount(null);
+    setAreaTotal(0);
     setScreenPath([]);
     setDrawingMode(false);
     onAreaSelect?.([]);
@@ -374,8 +381,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   return <div className={cn('relative min-h-[420px] overflow-hidden bg-muted', className)}>
     <NearbyLegend buildingCount={validBuildings.length} locationCount={locationGroups.length} />
     <div className="absolute right-14 top-3 z-20 flex items-center gap-2">
-      {areaCount == null && <button type="button" onClick={() => setDrawingMode((active) => !active)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold shadow-md ${drawingMode ? 'border-primary bg-primary text-white' : 'border-border bg-white text-foreground'}`} aria-pressed={drawingMode}><Pencil className="h-4 w-4" />{drawingMode ? 'Draw on map' : 'Draw area'}</button>}
-      {areaCount != null && <><span className="rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-md">{areaCount} selected</span><button type="button" onClick={clearArea} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-md"><RotateCcw className="h-4 w-4" />Clear</button></>}
+      <button type="button" onClick={() => setDrawingMode((active) => !active)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold shadow-md ${drawingMode ? 'border-primary bg-primary text-white' : 'border-border bg-white text-foreground'}`} aria-pressed={drawingMode}><Pencil className="h-4 w-4" />{drawingMode ? 'Draw on map' : areaCount == null ? 'Draw area' : 'Add area'}</button>
+      {areaCount != null && <><span className="rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-md">{areaTotal} {areaTotal === 1 ? 'area' : 'areas'} · {areaCount} selected</span><button type="button" onClick={clearArea} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-md"><RotateCcw className="h-4 w-4" />Clear</button></>}
     </div>
     <div ref={mapRef} className="h-full min-h-[420px] w-full" aria-label="Building results map" />
     {drawingMode && <svg className="absolute inset-0 z-10 h-full w-full cursor-crosshair touch-none" onPointerDown={startArea} onPointerMove={continueArea} onPointerUp={finishArea} onPointerCancel={() => { setDrawing(false); setScreenPath([]); }} aria-label="Draw a free-form search area">
