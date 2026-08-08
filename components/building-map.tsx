@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { AlertTriangle, Building2, Pencil, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
 import { BuildingCard } from '@/components/building-result-card';
 import { cn } from '@/lib/utils';
 import type { BuildingInventorySummary } from '@/lib/public-buildings';
@@ -175,11 +175,20 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       const [building] = group;
       const position = { lat: building.latitude!, lng: building.longitude! };
       bounds.extend(position);
+      const dotRadius = group.length > 1 ? 9 : 8;
+      const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${dotRadius}" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><circle cx="15" cy="15" r="${dotRadius + 2}" fill="none" stroke="rgba(15,23,42,.18)" stroke-width="1"/></svg>`;
       const marker = new google.maps.Marker({
         map,
         position,
         title: group.map((item) => item.name).join(', '),
-        label: group.length > 1 ? String(group.length) : undefined,
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(markerSvg)}`,
+          scaledSize: new google.maps.Size(30, 30),
+          anchor: new google.maps.Point(15, 15),
+          labelOrigin: new google.maps.Point(15, 15),
+        },
+        shape: { type: 'circle', coords: [15, 15, 14] },
+        label: group.length > 1 ? { text: String(group.length), color: '#ffffff', fontSize: '10px', fontWeight: '700' } : undefined,
       });
 
       const openPreview = () => {
@@ -326,7 +335,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
           const x = ((building.longitude! + 74.08) / 0.3) * 100;
           const y = ((40.93 - building.latitude!) / 0.35) * 100;
           if (x < 0 || x > 100 || y < 0 || y > 100) return null;
-          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={building.name} className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary p-1.5 shadow-md transition hover:scale-125" style={{ left: `${x}%`, top: `${y}%` }}><Building2 className="h-3 w-3 text-white" /></a>;
+          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={building.name} className="group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full" style={{ left: `${x}%`, top: `${y}%` }}><span className="h-4 w-4 rounded-full border-2 border-white bg-red-600 shadow-md transition-transform group-hover:scale-125" /></a>;
         })}
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-white/95 px-3 py-2 text-sm shadow-sm"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" /><span>Interactive map unavailable. Building locations remain selectable in this fallback view.</span></div>
         </div>
