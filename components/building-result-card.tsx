@@ -21,9 +21,7 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 }
 
-function bedroomLabel(value: number) {
-  return value === 0 ? 'Studio' : `${value}BR`;
-}
+const BEDROOM_PRICE_LABELS = [[0, 'Studio'], [1, '1 Bed'], [2, '2 Bed'], [3, '3 Bed']] as const;
 
 function updatedLabel(value: string | null | undefined) {
   if (!value) return null;
@@ -89,12 +87,13 @@ export function BuildingResultCard({ building, inventory, compared, highlighted,
           </div>
           <p className="mb-1.5 flex items-start gap-1 text-xs leading-4 text-muted-foreground"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
 
-          {inventory ? (
-            <div className="mb-1.5">
-              <p className="font-serif text-lg font-bold text-primary">{inventory.minPrice === inventory.maxPrice ? formatCurrency(inventory.minPrice) : `${formatCurrency(inventory.minPrice)}–${formatCurrency(inventory.maxPrice)}`}<span className="ml-1 font-sans text-xs font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-xs text-muted-foreground">{inventory.bedrooms.map(bedroomLabel).join(' · ')}{inventory.bedrooms.length > 0 ? ' · ' : ''}{inventory.availableCount} {inventory.availableCount === 1 ? 'unit' : 'units'} available</p>
-            </div>
-          ) : <p className="mb-2 font-medium text-foreground">Contact for availability</p>}
+          <div className="mb-1.5 grid grid-cols-2 gap-1.5" aria-label="Minimum base rent by apartment type">
+            {BEDROOM_PRICE_LABELS.map(([bedroom, label]) => {
+              const minimum = inventory?.bedroomMinimums[bedroom];
+              return <div key={bedroom} className="min-w-0 rounded-md bg-muted/60 px-2 py-1"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><p className="truncate text-xs font-bold text-foreground">{minimum != null ? `From ${formatCurrency(minimum)}` : 'Not available'}</p></div>;
+            })}
+          </div>
+          {inventory && <p className="mb-1.5 text-[11px] text-muted-foreground">{inventory.availableCount} current {inventory.availableCount === 1 ? 'unit' : 'units'} available</p>}
 
           {confirmedCoreAmenities.length > 0 && <div className="mb-1.5 flex flex-wrap gap-1">{confirmedCoreAmenities.map((amenity) => <span key={amenity.label} className="inline-flex items-center gap-1 rounded-full bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary"><Check className="h-3 w-3" />{amenity.label}</span>)}</div>}
 

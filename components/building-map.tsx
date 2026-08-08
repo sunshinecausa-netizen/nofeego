@@ -78,6 +78,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       streetViewControl: false,
       fullscreenControl: true,
       clickableIcons: true,
+      gestureHandling: 'greedy',
+      scrollwheel: true,
     });
     const infoWindow = new google.maps.InfoWindow();
     const bounds = new google.maps.LatLngBounds();

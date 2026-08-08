@@ -6,6 +6,7 @@ export type BuildingInventorySummary = {
   bedrooms: number[];
   availableCount: number;
   updatedAt: string | null;
+  bedroomMinimums: Partial<Record<0 | 1 | 2 | 3, number>>;
 };
 
 export type BuildingsPageResult = {
@@ -58,6 +59,9 @@ export async function fetchBuildingsPage({
     ? 'id,slug,name,address,city,state,zip_code,latitude,longitude,neighborhood,borough,amenities,hero_image_url,hero_image,gallery,nearby_subway,updated_at,building_id,building_type,stories,total_units'
     : '*');
   endpoint.searchParams.set('is_active', 'eq.true');
+  // NoFeeGo currently serves the New York metro market. Keep Boston and other
+  // out-of-market records out of every list, map, count, and filter result.
+  endpoint.searchParams.set('state', 'in.(NY,NJ)');
   endpoint.searchParams.set('order', 'name.asc');
   endpoint.searchParams.set('offset', String(from));
   endpoint.searchParams.set('limit', String(safePageSize));
@@ -142,10 +146,12 @@ export async function fetchBuildingsPage({
   const total = Number.parseInt(contentRange?.split('/')[1] ?? '0', 10) || 0;
   const inventoryByBuilding: Record<string, BuildingInventorySummary> = {};
   if (buildings.length > 0) {
-    const inventoryEndpoint = new URL('/rest/v1/listings', url);
-    inventoryEndpoint.searchParams.set('select', 'building_id,price,bedrooms,updated_at');
-    inventoryEndpoint.searchParams.set('status', 'eq.active');
-    inventoryEndpoint.searchParams.set('building_id', 'not.is.null');
+    const inventoryEndpoint = new URL('/rest/v1/inventory_snapshots', url);
+    inventoryEndpoint.searchParams.set('select', 'building_id,unit_id,rent,captured_at,units!inner(bedrooms,is_active)');
+    inventoryEndpoint.searchParams.set('inventory_status', 'eq.available');
+    inventoryEndpoint.searchParams.set('valid_until', 'is.null');
+    inventoryEndpoint.searchParams.set('rent', 'gt.0');
+    inventoryEndpoint.searchParams.set('units.is_active', 'eq.true');
     inventoryEndpoint.searchParams.set('limit', '5000');
     const inventoryResponse = await fetch(inventoryEndpoint, {
       cache: 'no-store',
@@ -153,25 +159,38 @@ export async function fetchBuildingsPage({
     });
     if (inventoryResponse.ok) {
       const buildingIds = new Set(buildings.map((building) => building.id));
-      const listings = await inventoryResponse.json() as Array<{ building_id: string; price: number; bedrooms: number; updated_at: string | null }>;
-      for (const listing of listings) {
-        if (!buildingIds.has(listing.building_id) || !Number.isFinite(listing.price)) continue;
-        const current = inventoryByBuilding[listing.building_id];
+      type CurrentInventoryRow = { building_id: string; unit_id: string; rent: number; captured_at: string; units: { bedrooms: number | null; is_active: boolean } };
+      const rows = await inventoryResponse.json() as CurrentInventoryRow[];
+      const latestByUnit = new Map<string, CurrentInventoryRow>();
+      for (const row of rows) {
+        const current = latestByUnit.get(row.unit_id);
+        if (!current || row.captured_at > current.captured_at) latestByUnit.set(row.unit_id, row);
+      }
+      for (const row of latestByUnit.values()) {
+        if (!buildingIds.has(row.building_id) || !Number.isFinite(row.rent) || row.rent <= 0) continue;
+        const bedroom = row.units?.bedrooms;
+        const current = inventoryByBuilding[row.building_id];
         if (!current) {
-          inventoryByBuilding[listing.building_id] = {
-            minPrice: listing.price,
-            maxPrice: listing.price,
-            bedrooms: Number.isFinite(listing.bedrooms) ? [listing.bedrooms] : [],
+          inventoryByBuilding[row.building_id] = {
+            minPrice: row.rent,
+            maxPrice: row.rent,
+            bedrooms: bedroom != null && Number.isFinite(bedroom) ? [bedroom] : [],
             availableCount: 1,
-            updatedAt: listing.updated_at,
+            updatedAt: row.captured_at,
+            bedroomMinimums: bedroom != null && [0, 1, 2, 3].includes(bedroom) ? { [bedroom]: row.rent } : {},
           };
           continue;
         }
-        current.minPrice = Math.min(current.minPrice, listing.price);
-        current.maxPrice = Math.max(current.maxPrice, listing.price);
-        if (Number.isFinite(listing.bedrooms) && !current.bedrooms.includes(listing.bedrooms)) current.bedrooms.push(listing.bedrooms);
+        current.minPrice = Math.min(current.minPrice, row.rent);
+        current.maxPrice = Math.max(current.maxPrice, row.rent);
+        if (bedroom != null && Number.isFinite(bedroom) && !current.bedrooms.includes(bedroom)) current.bedrooms.push(bedroom);
+        if (bedroom != null && [0, 1, 2, 3].includes(bedroom)) {
+          const supportedBedroom = bedroom as 0 | 1 | 2 | 3;
+          const minimum = current.bedroomMinimums[supportedBedroom];
+          current.bedroomMinimums[supportedBedroom] = minimum == null ? row.rent : Math.min(minimum, row.rent);
+        }
         current.availableCount += 1;
-        if (listing.updated_at && (!current.updatedAt || listing.updated_at > current.updatedAt)) current.updatedAt = listing.updated_at;
+        if (!current.updatedAt || row.captured_at > current.updatedAt) current.updatedAt = row.captured_at;
       }
       Object.values(inventoryByBuilding).forEach((summary) => summary.bedrooms.sort((a, b) => a - b));
     }
