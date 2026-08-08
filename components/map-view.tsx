@@ -15,6 +15,8 @@ export type MapListing = {
 };
 
 const MANHATTAN_CENTER = { lat: 40.7831, lng: -73.9712 };
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
+type MarkerWithOverlay = google.maps.Marker & { overlay?: google.maps.OverlayView };
 
 export function MapView({
   listings,
@@ -29,23 +31,19 @@ export function MapView({
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
+  const [markers, setMarkers] = useState<MarkerWithOverlay[]>([]);
   const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const apiKey = GOOGLE_MAPS_API_KEY;
+  const [scriptLoaded, setScriptLoaded] = useState(
+    () => typeof window !== 'undefined' && Boolean(window.google?.maps)
+  );
   const [loadError, setLoadError] = useState(false);
-
-  // Check for API key
-  useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (key) setApiKey(key);
-  }, []);
 
   // Load Google Maps script
   useEffect(() => {
     if (!apiKey || scriptLoaded || loadError) return;
     if (window.google?.maps) {
-      setScriptLoaded(true);
+      queueMicrotask(() => setScriptLoaded(true));
       return;
     }
     const script = document.createElement('script');
@@ -91,7 +89,6 @@ export function MapView({
     );
 
     if (validListings.length === 0) {
-      setMarkers([]);
       return;
     }
 
@@ -171,12 +168,12 @@ export function MapView({
       });
 
       // Store overlay reference for cleanup
-      (marker as any)._overlay = overlay;
+      (marker as MarkerWithOverlay).overlay = overlay;
 
-      return marker;
+      return marker as MarkerWithOverlay;
     });
 
-    setMarkers(newMarkers);
+    queueMicrotask(() => setMarkers(newMarkers));
 
     // Fit bounds to all markers
     if (newMarkers.length > 1) {
@@ -192,7 +189,7 @@ export function MapView({
 
     return () => {
       newMarkers.forEach((m) => {
-        (m as any)._overlay?.setMap(null);
+        m.overlay?.setMap(null);
         m.setMap(null);
       });
     };

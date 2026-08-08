@@ -34,7 +34,7 @@ export default function AdminNeighborhoodsPage() {
     if (profile?.is_admin) loadData();
   }, [user, profile, authLoading]);
 
-  const loadData = async () => {
+  async function loadData() {
     try {
       const { data } = await supabase.from('neighborhoods').select('*').order('name');
       setNeighborhoods(data as Neighborhood[] ?? []);
@@ -43,7 +43,7 @@ export default function AdminNeighborhoodsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this neighborhood? Buildings and listings will lose their neighborhood reference.')) return;
@@ -179,8 +179,8 @@ function NeighborhoodForm({
         if (error) throw error;
       }
       onSaved();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unable to save neighborhood.');
     } finally {
       setSaving(false);
     }

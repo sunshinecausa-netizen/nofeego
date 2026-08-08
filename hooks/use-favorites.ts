@@ -26,7 +26,7 @@ export function useFavorites() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => void load());
   }, [load]);
 
   const toggle = useCallback(async (listingId: string) => {

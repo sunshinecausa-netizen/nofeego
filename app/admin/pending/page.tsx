@@ -13,33 +13,50 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase/client';
 import { formatPrice } from '@/lib/services';
 
+type SubmissionRecord = {
+  id: string;
+  status: string;
+  created_at: string;
+  submission_data: {
+    title?: string;
+    price?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    neighborhood_name?: string;
+    description?: string;
+    images?: string[];
+    [key: string]: string | number | boolean | string[] | null | undefined;
+  };
+  profiles?: { email: string | null } | null;
+};
+
 export default function AdminPendingPage() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewing, setViewing] = useState<any | null>(null);
+  const [viewing, setViewing] = useState<SubmissionRecord | null>(null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) { router.push('/sign-in'); return; }
-    if (profile && !profile.is_admin) { router.push('/'); return; }
-    if (profile?.is_admin) loadSubmissions();
-  }, [user, profile, authLoading]);
-
-  const loadSubmissions = async () => {
+  async function loadSubmissions() {
     try {
       const { data } = await supabase
         .from('property_submissions')
         .select('*, profiles(email)')
         .order('created_at', { ascending: false });
-      setSubmissions(data ?? []);
+      setSubmissions((data ?? []) as unknown as SubmissionRecord[]);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.push('/sign-in'); return; }
+    if (profile && !profile.is_admin) { router.push('/'); return; }
+    if (profile?.is_admin) queueMicrotask(() => void loadSubmissions());
+  }, [user, profile, authLoading, router]);
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('property_submissions').update({ status }).eq('id', id);

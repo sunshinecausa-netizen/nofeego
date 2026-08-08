@@ -52,10 +52,68 @@ export type Building = {
   neighborhood_summary: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  building_id: string | null;
+  building_name: string | null;
+  street_address: string | null;
+  borough: string | null;
+  neighborhood: string | null;
+  building_class: string | null;
+  stories: number | null;
+  total_units: number | null;
+  luxury: boolean | null;
+  pet_friendly: boolean | null;
+  official_building_website: string | null;
+  apply_online_url: string | null;
+  virtual_tour_url: string | null;
+  building_phone: string | null;
+  building_leasing_email: string | null;
+  management_company: string | null;
+  developer: string | null;
+  current_owner: string | null;
+  source_url: string | null;
+  last_verified_date: string | null;
+  search_keywords: string[];
+  google_place_id: string | null;
+  hero_image_url: string | null;
+  logo_url: string | null;
+  gallery_folder: string | null;
+  partnership_status: PartnershipStatus;
+  leasing_contact_name: string | null;
+  leasing_phone: string | null;
+  data_confidence: DataConfidence;
+  ai_summary: string | null;
+  is_active: boolean;
+  updated_by: string | null;
   created_at: string;
   updated_at: string;
   neighborhoods?: Neighborhood | null;
 };
+
+export type PartnershipStatus = 'Not Contacted' | 'Contacted' | 'Negotiating' | 'Partner' | 'Inactive';
+export type DataConfidence = 'High' | 'Medium' | 'Low';
+
+export type Unit = {
+  id: string; unit_id: string | null; building_id: string; source_id: string | null; legacy_listing_id: string | null;
+  unit_number: string | null; unit_reference: string | null; unit_type: string | null; floorplan_name: string | null;
+  bedrooms: number | null; bathrooms: number | null; square_feet: number | null; square_feet_min: number | null; square_feet_max: number | null; floor: number | null;
+  has_in_unit_wd: boolean | null; is_furnished: boolean | null; accessible_unit: boolean | null; floorplan_url: string | null; is_active: boolean;
+  created_at: string; updated_at: string; buildings?: Building | null;
+};
+
+export type InventorySnapshot = {
+  id: string; building_id: string; unit_id: string; source_id: string | null; source_record_id: string;
+  rent: number | null; concession_text: string | null; concession_amount: number | null; net_effective_rent: number | null;
+  available_date: string | null; is_no_fee: boolean | null; inventory_status: 'available' | 'pending' | 'leased' | 'unavailable' | 'unknown';
+  captured_at: string; valid_from: string | null; valid_until: string | null; created_at: string;
+};
+export type BuildingAmenity = {
+  id: string; amenity_record_id: string; building_id: string; source_id: string | null;
+  pets_allowed: boolean | null; elevator: boolean | null; gym: boolean | null; doorman: boolean | null;
+  laundry_in_building: boolean | null; parking: boolean | null; is_active: boolean; created_at: string; updated_at: string;
+};
+export type BuildingAmenityLink = { building_id: string; amenity_id: string; created_at: string };
+export type BuildingPhoto = { id: string; building_id: string; photo_url: string; caption: string | null; display_order: number; is_hero: boolean; created_at: string };
+export type Transit = { id: string; building_id: string; station_name: string; subway_lines: string[]; walking_minutes: number | null; created_at: string; updated_at: string };
 
 export type Listing = {
   id: string;
@@ -113,7 +171,7 @@ export type Favorite = {
 export type PropertySubmission = {
   id: string;
   user_id: string | null;
-  submission_data: Record<string, any>;
+  submission_data: Record<string, unknown>;
   status: string;
   listing_id: string | null;
   created_at: string;
