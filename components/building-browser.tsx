@@ -147,6 +147,12 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     setSelectedBuildingId(id);
   }, [setSelectedBuildingId]);
 
+  const selectAreaBuildings = useCallback((ids: string[]) => {
+    const selectedIds = new Set(ids);
+    setComparedBuildings(result.buildings.filter((building) => selectedIds.has(building.id)));
+    if (ids.length === 0) setCompareOpen(false);
+  }, [result.buildings, setCompareOpen, setComparedBuildings]);
+
   function toggleCompare(building: Building, checked: boolean) {
     setComparedBuildings((current) => checked ? (current.some((item) => item.id === building.id) ? current : [...current, building]) : current.filter((item) => item.id !== building.id));
   }
@@ -221,7 +227,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view"><Button type="button" variant={mobileView === 'map' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('map')}><Map className="mr-2 h-4 w-4" />Map</Button><Button type="button" variant={mobileView === 'list' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('list')}><List className="mr-2 h-4 w-4" />List</Button></div>
       <div className="min-h-0 flex-1 md:grid md:grid-cols-2 min-[1100px]:grid-cols-[55fr_45fr]">
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden border-r border-border md:block md:min-h-0`} aria-label="Building map panel">
-          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} className="h-full min-h-0 rounded-none border-0" />
+          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} className="h-full min-h-0 rounded-none border-0" />
         </section>
         <section className={`${mobileView === 'list' ? 'block' : 'hidden'} min-h-0 bg-muted/25 md:block md:overflow-y-auto`} aria-label="Building results list">
           <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>
