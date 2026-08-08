@@ -8,6 +8,9 @@ export type BuildingMapItem = {
   id: string;
   slug: string;
   name: string;
+  address?: string | null;
+  neighborhood?: string | null;
+  imageUrl?: string | null;
   latitude: number | null;
   longitude: number | null;
 };
@@ -30,11 +33,13 @@ type BuildingMapProps = {
   hoveredBuildingId?: string | null;
   selectedBuildingId?: string | null;
   onBuildingSelect?: (id: string) => void;
+  onBuildingHover?: (id: string | null) => void;
   className?: string;
 };
 
-export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, onBuildingSelect, className }: BuildingMapProps) {
+export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, onBuildingSelect, onBuildingHover, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const googleMapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
   const [loadError, setLoadError] = useState(false);
@@ -82,6 +87,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       scrollwheel: true,
     });
     const infoWindow = new google.maps.InfoWindow();
+    googleMapRef.current = map;
     const bounds = new google.maps.LatLngBounds();
     const markerRegistry = markersRef.current;
     const markers = locationGroups.map((group) => {
@@ -94,9 +100,10 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         title: group.map((item) => item.name).join(', '),
         label: group.length > 1 ? String(group.length) : undefined,
       });
-      marker.addListener('click', () => {
+
+      const openPreview = () => {
         const content = document.createElement('div');
-        content.className = 'p-1';
+        content.style.cssText = 'width:260px;padding:2px 2px 4px;';
         if (group.length > 1) {
           const heading = document.createElement('div');
           heading.textContent = `${group.length} buildings at this location`;
@@ -106,13 +113,49 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         group.forEach((item) => {
           const link = document.createElement('a');
           link.href = `/buildings/${encodeURIComponent(item.slug)}`;
-          link.textContent = item.name;
-          link.style.cssText = 'color:#1a6b4f;display:block;font-size:14px;font-weight:700;padding:2px 0;text-decoration:none;';
+          link.setAttribute('aria-label', `View ${item.name}`);
+          link.style.cssText = 'color:#17201c;display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;padding:6px 0;text-decoration:none;';
+          if (item.imageUrl) {
+            const image = document.createElement('img');
+            image.src = item.imageUrl;
+            image.alt = '';
+            image.style.cssText = 'width:72px;height:58px;border-radius:8px;object-fit:cover;background:#eef2ef;';
+            link.appendChild(image);
+          } else {
+            const placeholder = document.createElement('div');
+            placeholder.textContent = 'Building';
+            placeholder.style.cssText = 'width:72px;height:58px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#eef2ef;color:#66736d;font-size:10px;';
+            link.appendChild(placeholder);
+          }
+          const details = document.createElement('span');
+          const title = document.createElement('strong');
+          title.textContent = item.name;
+          title.style.cssText = 'display:block;color:#1a6b4f;font-size:14px;line-height:1.25;';
+          const location = document.createElement('span');
+          location.textContent = [item.neighborhood, item.address].filter(Boolean).join(' · ');
+          location.style.cssText = 'display:block;margin-top:3px;color:#66736d;font-size:11px;line-height:1.3;';
+          const action = document.createElement('span');
+          action.textContent = 'View building →';
+          action.style.cssText = 'display:block;margin-top:5px;color:#1a6b4f;font-size:11px;font-weight:700;';
+          details.append(title, location, action);
+          link.appendChild(details);
           content.appendChild(link);
         });
-        onBuildingSelect?.(group[0].id);
         infoWindow.setContent(content);
         infoWindow.open(map, marker);
+      };
+
+      marker.addListener('mouseover', () => {
+        onBuildingHover?.(group[0].id);
+        openPreview();
+      });
+      marker.addListener('mouseout', () => onBuildingHover?.(null));
+      marker.addListener('click', () => {
+        const focusedBuilding = group[0];
+        onBuildingSelect?.(focusedBuilding.id);
+        openPreview();
+        map.panTo(position);
+        if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
       });
       group.forEach((item) => markerRegistry.set(item.id, marker));
       return marker;
@@ -123,10 +166,21 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       map.setZoom(15);
     }
     return () => {
+      infoWindow.close();
+      googleMapRef.current = null;
       markerRegistry.clear();
       markers.forEach((marker) => marker.setMap(null));
     };
-  }, [scriptLoaded, locationGroups, onBuildingSelect, validBuildings]);
+  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, validBuildings]);
+
+  useEffect(() => {
+    if (!selectedBuildingId) return;
+    const building = validBuildings.find((item) => item.id === selectedBuildingId);
+    const map = googleMapRef.current;
+    if (!building || !map) return;
+    map.panTo({ lat: building.latitude!, lng: building.longitude! });
+    if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
+  }, [selectedBuildingId, validBuildings]);
 
   useEffect(() => {
     const activeMarkers = new Set<google.maps.Marker>();
