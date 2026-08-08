@@ -69,7 +69,7 @@ export function ListingCard({
           {/* Badges */}
           <div className="absolute top-3 left-3 flex gap-1.5">
             {isAvailable && (
-              <Badge className="bg-green-600 text-white text-xs gap-1">
+              <Badge className="bg-success text-success-foreground text-xs gap-1">
                 <CheckCircle className="h-3 w-3" /> Available Now
               </Badge>
             )}
