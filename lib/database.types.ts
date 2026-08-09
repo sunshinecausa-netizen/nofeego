@@ -30,7 +30,7 @@ export interface Database {
       }>;
       profiles: Table<{
         id: string; display_name: string | null; email: string | null; is_admin: boolean;
-        created_at: string; updated_at: string;
+        account_role: 'tenant' | 'admin'; created_at: string; updated_at: string;
       }>;
       listings: Table<{
         id: string; slug: string; title: string; building_id: string | null; neighborhood_id: string | null;
@@ -41,8 +41,18 @@ export interface Database {
         seo_title: string | null; seo_description: string | null; created_at: string; updated_at: string;
       }>;
       favorites: Table<{
-        id: string; user_id: string; listing_id: string; building_id: string | null; unit_id: string | null;
+        id: string; user_id: string; listing_id: string | null; building_id: string | null; unit_id: string | null;
         created_at: string;
+      }>;
+      building_comparisons: Table<{
+        id: string; user_id: string; building_id: string; created_at: string;
+      }>;
+      inquiries: Table<{
+        id: string; user_id: string | null; building_id: string | null; unit_id: string | null;
+        request_type: 'entire_place' | 'roommate' | null; message: string | null; move_in_date: string | null;
+        monthly_budget: number | null; contact_name: string | null; contact_email: string | null;
+        contact_phone: string | null; bedrooms: string | null; roommate_preferences: string | null;
+        status: 'new' | 'Submitted' | 'In Review' | 'Responded' | 'Closed'; created_at: string; updated_at: string;
       }>;
       property_submissions: Table<{
         id: string; user_id: string | null; submission_data: Json; status: string; listing_id: string | null;
