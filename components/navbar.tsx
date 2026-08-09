@@ -2,11 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Building2, LogIn, PlusCircle } from 'lucide-react';
+import { Building2, GitCompareArrows, Heart, LayoutDashboard, LogIn, LogOut, MessageSquare, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth-context';
+import { useTenantData } from '@/lib/account/tenant-data-context';
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const { user, loading, signOut } = useAuth();
+  const { favoriteIds, compareIds } = useTenantData();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -26,7 +30,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto sm:gap-2">
           <Button asChild variant="outline" size="sm" className="px-2 sm:px-3">
             <Link href="/list-your-property">
               <PlusCircle className="mr-1.5 h-4 w-4" />
@@ -34,12 +38,18 @@ export function Navbar() {
               <span className="sm:hidden">List Property</span>
             </Link>
           </Button>
-          <Button asChild size="sm">
+          {!loading && user ? <>
+            <Button asChild variant="ghost" size="sm"><Link href="/dashboard"><LayoutDashboard className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Dashboard</span></Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/dashboard/saved"><Heart className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Saved Buildings</span><span className="ml-1 text-xs">{favoriteIds.length}</span></Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/compare"><GitCompareArrows className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Compare</span><span className="ml-1 text-xs">{compareIds.length}</span></Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/dashboard/requests"><MessageSquare className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">My Requests</span></Link></Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => void signOut()}><LogOut className="mr-1.5 h-4 w-4" /><span className="hidden sm:inline">Sign Out</span></Button>
+          </> : <Button asChild size="sm">
             <Link href="/sign-in">
               <LogIn className="mr-1.5 h-4 w-4" />
               Sign In
             </Link>
-          </Button>
+          </Button>}
         </div>
       </div>
     </header>

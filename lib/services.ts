@@ -196,7 +196,7 @@ export async function fetchFavoriteIds(): Promise<string[]> {
     .from('favorites')
     .select('listing_id');
   if (error) throw error;
-  return (data ?? []).map((f) => f.listing_id);
+  return (data ?? []).map((f) => f.listing_id).filter((id): id is string => Boolean(id));
 }
 
 export async function toggleFavorite(listingId: string): Promise<boolean> {

@@ -4,6 +4,7 @@ import { Inter, Playfair_Display } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth-context';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
+import { TenantDataProvider } from '@/lib/account/tenant-data-context';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
@@ -59,9 +60,11 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="font-sans antialiased min-h-screen flex flex-col">
         <AuthProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <TenantDataProvider>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </TenantDataProvider>
         </AuthProvider>
       </body>
     </html>

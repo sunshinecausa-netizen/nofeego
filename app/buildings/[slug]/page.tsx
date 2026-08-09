@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin, Calendar, Building as BuildingIcon, ArrowLeft, Maximize, Train,
-  ShoppingBag, Utensils, Mail, Phone, Check,
+  ShoppingBag, Utensils, Mail, Phone, Check, Heart, GitCompareArrows,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,8 +15,10 @@ import { MapPlaceholder } from '@/components/map-placeholder';
 import { FaqSection } from '@/components/faq-section';
 import type { Building, Listing } from '@/lib/types';
 import { fetchBuildingBySlug, fetchListingsByBuilding } from '@/lib/services';
+import { useTenantData } from '@/lib/account/tenant-data-context';
 
 export default function BuildingDetailPage() {
+  const { favoriteIds, compareIds, toggleFavorite, toggleCompare } = useTenantData();
   const params = useParams();
   const slug = params.slug as string;
   const [building, setBuilding] = useState<Building | null>(null);
@@ -70,6 +72,8 @@ export default function BuildingDetailPage() {
     id: l.id, slug: l.slug, title: l.title, price: l.price,
     latitude: l.latitude ?? building.latitude, longitude: l.longitude ?? building.longitude,
   }));
+  const isFavorite = favoriteIds.includes(building.id);
+  const isCompared = compareIds.includes(building.id);
 
   return (
     <div>
@@ -206,6 +210,7 @@ export default function BuildingDetailPage() {
               {/* Contact card */}
               <div className="bg-white border border-border rounded-2xl p-5 shadow-sm">
                 <h3 className="font-serif text-lg font-bold mb-4">Contact</h3>
+                <div className="mb-3 grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={() => void toggleFavorite(building.id, !isFavorite)}><Heart className={`mr-2 h-4 w-4 ${isFavorite ? 'fill-destructive text-destructive' : ''}`} />{isFavorite ? 'Saved' : 'Save'}</Button><Button type="button" variant="outline" onClick={() => void toggleCompare(building.id, !isCompared)}><GitCompareArrows className="mr-2 h-4 w-4" />{isCompared ? 'Added' : 'Compare'}</Button></div>
                 <Button className="w-full mb-2" size="lg">
                   Schedule a Tour
                 </Button>
