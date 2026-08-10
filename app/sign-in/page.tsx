@@ -28,6 +28,7 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === 'true';
 
   const returnPath = () => {
     const value = new URLSearchParams(window.location.search).get('next');
@@ -90,19 +91,23 @@ export default function SignInPage() {
             </div>
           )}
 
-          <Button variant="outline" className="w-full gap-2" size="lg" onClick={handleGoogle} disabled={googleLoading}>
-            {googleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
-            Continue with Google
-          </Button>
+          {googleAuthEnabled && (
+            <>
+              <Button variant="outline" className="w-full gap-2" size="lg" onClick={handleGoogle} disabled={googleLoading}>
+                {googleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
+                Continue with Google
+              </Button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
