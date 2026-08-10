@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/import-buildings.ts", "lib/database.types.ts", "lib/api-models.ts", "lib/types.ts"]
+  "include": ["scripts/import-buildings.ts", "scripts/street-easy-import/**/*.ts", "lib/database.types.ts", "lib/api-models.ts", "lib/types.ts"]
 }

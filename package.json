@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:importer": "tsc --noEmit -p tsconfig.importer.json",
-    "import:buildings": "tsx scripts/import-buildings.ts"
+    "import:buildings": "tsx scripts/import-buildings.ts",
+    "extract:building": "tsx scripts/street-easy-import/cli.ts",
+    "test:extractor": "tsx --test scripts/street-easy-import/*.test.ts"
   },
   "dependencies": {
     "@googlemaps/markerclusterer": "2.5.3",
@@ -43,6 +45,7 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@react-google-maps/api": "^2.20.8",
     "@supabase/supabase-js": "^2.110.8",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

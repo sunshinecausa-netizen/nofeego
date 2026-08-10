@@ -1,0 +1,155 @@
+{
+  "source_name": "StreetEasy",
+  "source_url": "https://streeteasy.com/building/atelier-condominium",
+  "scraped_at": "2026-08-10T12:10:58.340Z",
+  "last_verified_at": "2026-08-10T12:10:58.340Z",
+  "data_confidence": "High",
+  "requires_review": true,
+  "facts": [
+    {
+      "field": "buildingName",
+      "rawValue": "Atelier",
+      "normalizedValue": "Atelier",
+      "extractionMethod": "json_ld",
+      "confidence": "High"
+    },
+    {
+      "field": "streetAddress",
+      "rawValue": "635 West 42nd Street",
+      "normalizedValue": "635 West 42nd Street",
+      "extractionMethod": "json_ld",
+      "confidence": "High"
+    },
+    {
+      "field": "city",
+      "rawValue": "635 West 42nd Street, New York, NY 10036",
+      "normalizedValue": "New York",
+      "extractionMethod": "json_ld",
+      "confidence": "High"
+    },
+    {
+      "field": "state",
+      "rawValue": "635 West 42nd Street, New York, NY 10036",
+      "normalizedValue": "NY",
+      "extractionMethod": "json_ld",
+      "confidence": "High"
+    },
+    {
+      "field": "zipCode",
+      "rawValue": "635 West 42nd Street, New York, NY 10036",
+      "normalizedValue": "10036",
+      "extractionMethod": "json_ld",
+      "confidence": "High"
+    },
+    {
+      "field": "borough",
+      "rawValue": "New York",
+      "normalizedValue": "Manhattan",
+      "extractionMethod": "derived",
+      "confidence": "Medium"
+    },
+    {
+      "field": "neighborhood",
+      "rawValue": "Condo in Hell's Kitchen",
+      "normalizedValue": "Hell's Kitchen",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "propertyType",
+      "rawValue": "Condo in Hell's Kitchen",
+      "normalizedValue": "Condo",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "buildingClass",
+      "rawValue": "R4 Condominium",
+      "normalizedValue": "R4 Condominium",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "yearBuilt",
+      "rawValue": "2007 built",
+      "normalizedValue": 2007,
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "floors",
+      "rawValue": "46 stories",
+      "normalizedValue": 46,
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "units",
+      "rawValue": "478 units",
+      "normalizedValue": 478,
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "developer",
+      "rawValue": "The Moinian Group",
+      "normalizedValue": "The Moinian Group",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "architect",
+      "rawValue": "Costas Kondylis",
+      "normalizedValue": "Costas Kondylis",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "amenity",
+      "rawValue": "Elevator",
+      "normalizedValue": "Elevator",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "amenity",
+      "rawValue": "Gym",
+      "normalizedValue": "Gym",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "amenity",
+      "rawValue": "Doorman",
+      "normalizedValue": "Doorman",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    },
+    {
+      "field": "amenity",
+      "rawValue": "Swimming Pool",
+      "normalizedValue": "Swimming Pool",
+      "extractionMethod": "semantic_heading",
+      "confidence": "Medium"
+    }
+  ],
+  "inventory": [
+    {
+      "sourceRecordId": "streeteasy:18J",
+      "unitReference": "18J",
+      "rent": 6500,
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "squareFeet": 1050,
+      "availableDate": "2026-09-01",
+      "inventoryStatus": "available",
+      "raw": {
+        "rent": "$6,500",
+        "bedrooms": "2 beds",
+        "bathrooms": "2 baths",
+        "squareFeet": "1,050 ft²",
+        "availableDate": "Sep 1"
+      }
+    }
+  ]
+}
