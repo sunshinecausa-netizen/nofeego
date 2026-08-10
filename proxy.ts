@@ -9,14 +9,28 @@ async function accessToken(username: string, password: string) {
 }
 
 export async function proxy(request: NextRequest) {
-  if (process.env.SITE_PROTECTION_ENABLED !== 'true') {
-    return NextResponse.next();
+  const requestedChinese = request.nextUrl.pathname === '/zh-hans' || request.nextUrl.pathname.startsWith('/zh-hans/');
+  const prefersChinese = request.cookies.get('nofeego_locale')?.value === 'zh-Hans';
+  if (!requestedChinese && prefersChinese && request.nextUrl.pathname !== '/site-access' && !request.nextUrl.pathname.startsWith('/api/')) {
+    const localizedUrl = request.nextUrl.clone();
+    localizedUrl.pathname = request.nextUrl.pathname === '/' ? '/zh-hans' : `/zh-hans${request.nextUrl.pathname}`;
+    return NextResponse.redirect(localizedUrl);
   }
+  const isChinese = requestedChinese;
+  const targetUrl = request.nextUrl.clone();
+  if (isChinese) targetUrl.pathname = request.nextUrl.pathname.replace(/^\/zh-hans(?=\/|$)/, '') || '/';
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nofeego-locale', isChinese ? 'zh-Hans' : 'en');
+  const localizedResponse = () => isChinese
+    ? NextResponse.rewrite(targetUrl, { request: { headers: requestHeaders } })
+    : NextResponse.next({ request: { headers: requestHeaders } });
+
+  if (targetUrl.pathname === '/site-access' || process.env.SITE_PROTECTION_ENABLED !== 'true') return localizedResponse();
 
   const expectedUsername = process.env.SITE_PROTECTION_USERNAME;
   const expectedPassword = process.env.SITE_PROTECTION_PASSWORD;
 
-  const loginUrl = new URL('/site-access', request.url);
+  const loginUrl = new URL(isChinese ? '/zh-hans/site-access' : '/site-access', request.url);
   const requestedPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
   if (requestedPath !== '/') loginUrl.searchParams.set('next', requestedPath);
 
@@ -27,7 +41,7 @@ export async function proxy(request: NextRequest) {
 
   const expectedToken = await accessToken(expectedUsername, expectedPassword);
   if (request.cookies.get(ACCESS_COOKIE)?.value === expectedToken) {
-    const response = NextResponse.next();
+    const response = localizedResponse();
     response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
     return response;
   }
@@ -36,5 +50,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api/site-access|site-access|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api/site-access|_next/static|_next/image|favicon.ico).*)'],
 };

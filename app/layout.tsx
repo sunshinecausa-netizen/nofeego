@@ -1,10 +1,12 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth-context';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { TenantDataProvider } from '@/lib/account/tenant-data-context';
+import { LocaleProvider } from '@/components/locale-provider';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
@@ -51,21 +53,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = (await headers()).get('x-nofeego-locale') === 'zh-Hans' ? 'zh-Hans' : 'en';
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased min-h-screen flex flex-col">
-        <AuthProvider>
-          <TenantDataProvider>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </TenantDataProvider>
-        </AuthProvider>
+        <LocaleProvider locale={locale}>
+          <AuthProvider>
+            <TenantDataProvider>
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </TenantDataProvider>
+          </AuthProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

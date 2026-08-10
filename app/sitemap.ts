@@ -24,6 +24,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: page.changeFrequency,
       priority: page.priority,
     });
+    entries.push({
+      url: `${baseUrl}/zh-hans${page.url}`,
+      lastModified: new Date(),
+      changeFrequency: page.changeFrequency,
+      priority: Math.max(0.5, page.priority - 0.1),
+    });
   });
 
   try {
