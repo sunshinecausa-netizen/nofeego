@@ -57,6 +57,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const subway = building.nearby_subway?.[0];
   const fullAddress = [building.address, building.city, building.state, building.zip_code].filter(Boolean).join(', ');
   const compact = variant === 'map';
+  const hasStreetEasyRentData = Object.values(inventory?.bedroomMinimums ?? {}).some((value) => value != null);
   const requestContext = new URLSearchParams({ buildingId: building.id, buildingSlug: building.slug, buildingName: building.name, neighborhood: building.neighborhood ?? building.borough ?? '', address: fullAddress }).toString();
   return (
     <article data-building-id={building.id} className={cn('group relative overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:border-primary/30 hover:shadow-md', compact ? 'max-h-[520px] w-[340px] overflow-y-auto' : 'min-h-[224px] hover:-translate-y-0.5', highlighted ? 'border-primary ring-2 ring-primary/20' : 'border-border')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClick={() => onSelect?.(building.id)}>
@@ -71,7 +72,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
 
           <div className="border-t border-border bg-muted/20 p-2" aria-label="Minimum base rent by apartment type">
             <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Minimum base rent</p>
-            <div className="grid grid-cols-2 gap-1.5">{BEDROOM_PRICE_LABELS.map(([bedroom, label]) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className="min-w-0 rounded-md border border-border/60 bg-white px-2 py-1.5"><p className="text-[10px] font-medium text-muted-foreground">{label}</p><p className="truncate text-[11px] font-bold leading-4 text-foreground">{minimum != null ? `From ${formatCurrency(minimum)}` : 'Unknown'}</p></div>; })}</div>
+            <div className="grid grid-cols-2 gap-1.5">{BEDROOM_PRICE_LABELS.map(([bedroom, label]) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className="min-w-0 rounded-md border border-border/60 bg-white px-2 py-1.5"><p className="text-[10px] font-medium text-muted-foreground">{label}</p><p className="truncate text-[11px] font-bold leading-4 text-foreground">{minimum != null ? `From ${formatCurrency(minimum)}` : hasStreetEasyRentData ? 'Unavailable' : 'Unknown'}</p></div>; })}</div>
           </div>
         </div>
 

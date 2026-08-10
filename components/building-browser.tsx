@@ -72,8 +72,8 @@ const COMPARE_AMENITIES = [
   ['Pool', ['Pool', 'Indoor Pool', 'Outdoor Pool']],
 ] as const;
 
-function formatStartingRent(value: number | undefined) {
-  return value == null ? 'Unknown' : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
+function formatStartingRent(value: number | undefined, hasStreetEasyRentData: boolean) {
+  return value == null ? (hasStreetEasyRentData ? 'Unavailable' : 'Unknown') : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
 }
 
 type Props = {
@@ -306,7 +306,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
                 return <tr key={building.id} className="border-t border-border align-middle hover:bg-muted/30">
                   <td className="px-3 py-3"><Link href={`/buildings/${building.slug}`} className="font-semibold text-primary hover:underline">{building.name}</Link><p className="mt-0.5 text-[11px] text-muted-foreground">{building.neighborhood ?? building.borough ?? 'New York metro'}</p></td>
                   <td className="whitespace-nowrap px-3 py-3 font-medium">{inventory ? `${inventory.availableCount} ${inventory.availableCount === 1 ? 'unit' : 'units'}` : 'Not available'}</td>
-                  {([0, 1, 2, 3] as const).map((bedroom) => <td key={bedroom} className="whitespace-nowrap px-3 py-3 font-semibold">{formatStartingRent(inventory?.bedroomMinimums[bedroom])}</td>)}
+                  {([0, 1, 2, 3] as const).map((bedroom) => <td key={bedroom} className="whitespace-nowrap px-3 py-3 font-semibold">{formatStartingRent(inventory?.bedroomMinimums[bedroom], Object.values(inventory?.bedroomMinimums ?? {}).some((value) => value != null))}</td>)}
                   {COMPARE_AMENITIES.map(([label, values]) => {
                     const confirmed = values.some((value) => amenities.has(value));
                     return <td key={label} className={`px-3 py-3 text-center font-bold ${confirmed ? 'text-primary' : 'text-muted-foreground'}`} aria-label={`${label}: ${confirmed ? 'Verified' : 'Not verified'}`}>{confirmed ? 'Yes' : '—'}</td>;
