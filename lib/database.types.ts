@@ -90,7 +90,11 @@ export interface Database {
       transit: Table<{ id: string; building_id: string; station_name: string; subway_lines: string[]; walking_minutes: number | null; created_at: string; updated_at: string }>;
       [key: string]: Table<Record<string, unknown>>;
     };
-    Views: Record<string, never>;
+    Views: {
+      public_buildings: { Row: Partial<Database['public']['Tables']['buildings']['Row']> & { id: string; slug: string; name: string; address: string; city: string; state: string; is_active: boolean; updated_at: string }; Insert: never; Update: never; Relationships: [] };
+      public_building_availability: { Row: { building_slug: string; availability_status: 'unavailable' | 'limited' | 'available' }; Insert: never; Update: never; Relationships: [] };
+      public_building_rent_summary: { Row: { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }; Insert: never; Update: never; Relationships: [] };
+    };
     Functions: Record<string, never>;
     Enums: { partnership_status: PartnershipStatus; data_confidence: DataConfidence };
     CompositeTypes: Record<string, never>;

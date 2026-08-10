@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Building2, CalendarDays, Camera, Check, Clock3, Heart, Home, MapPin, TrainFront, Users } from 'lucide-react';
+import { Building2, Camera, Check, Clock3, Heart, Home, MapPin, TrainFront, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,11 +33,7 @@ function updatedLabel(value: string | null | undefined) {
   return `Updated ${new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 }
 
-function availabilityDate(value: string | null | undefined) {
-  if (!value) return 'Move-in date not available';
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
-  return Number.isFinite(date.getTime()) ? `Available ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Move-in date not available';
-}
+const availabilityLabel = { available: 'Availability confirmed', limited: 'Limited availability', unavailable: 'No availability currently confirmed' } as const;
 
 type Props = {
   building: Building;
@@ -57,7 +53,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const heroImage = building.hero_image_url ?? building.hero_image;
   const images = [heroImage, ...(building.gallery ?? [])].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
   const amenities = new Set(building.amenities ?? []);
-  const updateText = updatedLabel(inventory?.updatedAt ?? building.updated_at);
+  const updateText = updatedLabel(building.updated_at);
   const subway = building.nearby_subway?.[0];
   const fullAddress = [building.address, building.city, building.state, building.zip_code].filter(Boolean).join(', ');
   const compact = variant === 'map';
@@ -69,18 +65,13 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
         <div className={cn('grid min-w-0 overflow-hidden border-border', compact ? 'grid-rows-[auto_auto] border-b' : 'sm:grid-rows-2 sm:border-r')}>
           <div className={cn('relative overflow-hidden bg-muted', compact ? 'min-h-36' : 'min-h-40')}>
             {heroImage ? <Image src={heroImage} alt={`${building.name} exterior`} fill unoptimized sizes={compact ? '340px' : '(min-width: 1100px) 18vw, (min-width: 640px) 36vw, 100vw'} className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full min-h-36 items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-10 w-10 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
-            <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">{inventory?.isNoFee && <Badge className="bg-primary text-primary-foreground">No Fee</Badge>}{images.length > 0 && <Badge className="gap-1 bg-foreground/80 text-background hover:bg-foreground/80"><Camera className="h-3 w-3" />{images.length}</Badge>}</div>
+            <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">{images.length > 0 && <Badge className="gap-1 bg-foreground/80 text-background hover:bg-foreground/80"><Camera className="h-3 w-3" />{images.length}</Badge>}</div>
             <button type="button" className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-card/95 shadow" aria-label={favorited ? `Remove ${building.name} from favorites` : `Save ${building.name}`} onClick={(event) => { event.stopPropagation(); onFavoriteChange?.(building, !favorited); }}><Heart className={cn('h-5 w-5', favorited && 'fill-destructive text-destructive')} /></button>
           </div>
 
-          <div className="border-t border-border bg-muted/20 p-2" aria-label="Starting base rent by apartment type">
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Starting rent</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {BEDROOM_PRICE_LABELS.map(([bedroom, label]) => {
-                const minimum = inventory?.bedroomMinimums[bedroom];
-                return <div key={bedroom} className="min-w-0 rounded-md border border-border/60 bg-white px-2 py-1.5"><p className="text-[10px] font-medium text-muted-foreground">{label}</p><p className="truncate text-[11px] font-bold leading-4 text-foreground">{minimum != null ? `From ${formatCurrency(minimum)}` : 'Not available'}</p></div>;
-              })}
-            </div>
+          <div className="border-t border-border bg-muted/20 p-2" aria-label="Minimum base rent by apartment type">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Minimum base rent</p>
+            <div className="grid grid-cols-2 gap-1.5">{BEDROOM_PRICE_LABELS.map(([bedroom, label]) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className="min-w-0 rounded-md border border-border/60 bg-white px-2 py-1.5"><p className="text-[10px] font-medium text-muted-foreground">{label}</p><p className="truncate text-[11px] font-bold leading-4 text-foreground">{minimum != null ? `From ${formatCurrency(minimum)}` : 'Unknown'}</p></div>; })}</div>
           </div>
         </div>
 
@@ -88,10 +79,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
           <h2 className="truncate font-serif text-lg font-bold text-foreground transition group-hover:text-primary">{building.name}</h2>
           <p className="mb-1.5 flex items-start gap-1 text-xs leading-4 text-muted-foreground"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
-          <p className="mb-1.5 flex items-center gap-1 text-[11px] text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{availabilityDate(inventory?.earliestAvailableDate)}</p>
-
-          <p className="mb-1.5 text-[11px] text-muted-foreground">{inventory ? `${inventory.availableCount} current ${inventory.availableCount === 1 ? 'unit' : 'units'} available` : 'Availability not verified'}</p>
-          {inventory?.concessionText && <p className="mb-1.5 rounded-md border border-promotion/30 bg-promotion-surface px-2 py-1.5 text-[11px] font-semibold text-navy"><span className="text-promotion">Special offer:</span> {inventory.concessionText}</p>}
+          <p className="mb-1.5 text-[11px] text-muted-foreground">{availabilityLabel[inventory?.availabilityStatus ?? 'unavailable']}</p>
 
           <div className="mb-1.5 grid grid-cols-2 gap-1">{CORE_AMENITIES.map((amenity) => { const confirmed = amenity.values.some((value) => amenities.has(value)); return <span key={amenity.label} className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium', confirmed ? 'bg-accent text-accent-foreground' : 'bg-muted/60 text-muted-foreground')}><Check className={cn('h-3 w-3 text-primary-hover', !confirmed && 'invisible')} />{amenity.label}{!confirmed && ' · Not verified'}</span>; })}</div>
 

@@ -10,7 +10,7 @@ const AMENITIES = [
   ['Doorman', ['Doorman']], ['Gym', ['Gym']], ['In-Unit W/D', ['In-Unit W/D Available']], ['Elevator', ['Elevator']],
   ['Pets', ['Pets Allowed', 'Small Dogs Allowed', 'Large Dogs Allowed', 'Cats Allowed']], ['Pool', ['Pool', 'Indoor Pool', 'Outdoor Pool']], ['Private Outdoor Space', ['Outdoor Space']],
 ] as const;
-const price = (value?: number) => value == null ? 'Not provided' : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
+const price = (value?: number) => value == null ? 'Unknown' : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
 
 export default function ComparePage() {
   const { compareIds, toggleCompare, clearCompare } = useTenantData(); const { buildings, inventoryByBuilding, loading } = useAccountBuildings(compareIds);
