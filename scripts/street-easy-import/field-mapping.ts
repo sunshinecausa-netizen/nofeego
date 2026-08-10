@@ -1,0 +1,16 @@
+export const FIELD_MAPPING = [
+  ['StreetEasy public field', 'Raw snapshot field', 'NoFeeGo Excel field', 'Database target', 'Normalization'],
+  ['Building heading', 'buildingName', 'Building_Master.Building Name', 'buildings.building_name', 'Trim whitespace'],
+  ['Address heading / JSON-LD', 'streetAddress, city, state, zipCode', 'Building_Master address fields', 'buildings address fields', 'Parse components; preserve ZIP as text'],
+  ['Building type', 'propertyType', 'Building_Master.Building Type', 'buildings.building_type', 'Controlled display value'],
+  ['Neighborhood', 'neighborhood', 'Building_Master.Neighborhood', 'buildings.neighborhood', 'Trim whitespace'],
+  ['Built', 'yearBuilt', 'Building_Master.Year Built', 'buildings.year_built', 'Integer'],
+  ['Stories', 'floors', 'Building_Master.Stories', 'buildings.stories', 'Integer'],
+  ['Units', 'units', 'Building_Master.Total Units', 'buildings.total_units', 'Integer'],
+  ['Developer', 'developer', 'Building_Master.Developer', 'buildings.developer', 'Trim whitespace'],
+  ['Architect', 'architect', 'Raw_Facts / Review_Report', 'No current canonical column', 'Preserved for review; no DB write'],
+  ['Amenities section', 'amenities[]', 'Amenity_Master controlled columns', 'building_amenities', 'Known terms only; unknown remains blank'],
+  ['Available unit', 'inventory[]', 'Unit_Master structural fields', 'units', 'Unit reference, beds, baths, sqft'],
+  ['Available unit price/status', 'inventory[]', 'Inventory_Snapshots', 'inventory_snapshots', 'Currency numeric; append-only preview'],
+  ['Source metadata', 'sourceName/sourceUrl/scrapedAt', 'building_sources', 'building_sources', 'ISO timestamps; facts_only'],
+] as const;

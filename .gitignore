@@ -19,4 +19,7 @@
 # TypeScript
 *.tsbuildinfo
 
+# Office temporary lock files
+~$*.xlsx
+
 .vercel
