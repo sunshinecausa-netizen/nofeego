@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Mail, Loader2 } from 'lucide-react';
+import { Building2, Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,8 +23,9 @@ function GoogleIcon({ className }: { className?: string }) {
 
 export default function SignInPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signIn } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -43,13 +44,12 @@ export default function SignInPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/sign-in?next=${encodeURIComponent(returnPath())}` } });
+    const { error } = await signIn(email, password);
     setLoading(false);
     if (error) {
-      setError(error.message);
+      setError(error);
     } else {
-      setError(null);
-      setMagicLinkSent(true);
+      router.replace(returnPath());
     }
   };
 
@@ -65,8 +65,6 @@ export default function SignInPage() {
       setGoogleLoading(false);
     }
   };
-
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 bg-gradient-to-b from-accent/30 to-background">
@@ -118,12 +116,22 @@ export default function SignInPage() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" autoComplete="current-password" required className="pl-10" />
+              </div>
+            </div>
+
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</>) : ('Email me a magic link')}
+              {loading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing in...</>) : ('Sign In')}
             </Button>
-            {magicLinkSent && <p role="status" className="rounded-lg bg-success/15 p-3 text-sm text-foreground">Check your email for a secure sign-in link. You can close this tab after opening it.</p>}
           </form>
-          <p className="text-center text-xs text-muted-foreground">No password required. A tenant profile is created automatically after your first sign-in.</p>
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{' '}
+            <Link href="/sign-up" className="font-medium text-primary hover:underline">Create one</Link>
+          </p>
         </div>
       </div>
     </div>
