@@ -2,15 +2,22 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Building2, GitCompareArrows, Heart, LayoutDashboard, LogIn, LogOut, MessageSquare, PlusCircle } from 'lucide-react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Building2, GitCompareArrows, Heart, Languages, LayoutDashboard, LogIn, LogOut, MessageSquare, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 import { useTenantData } from '@/lib/account/tenant-data-context';
+import { useLocale } from '@/components/locale-provider';
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const { user, loading, signOut } = useAuth();
   const { favoriteIds, compareIds } = useTenantData();
+  const locale = useLocale();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const englishPath = pathname.replace(/^\/zh-hans(?=\/|$)/, '') || '/';
+  const languageHref = `${locale === 'zh-Hans' ? englishPath : englishPath === '/' ? '/zh-hans' : `/zh-hans${englishPath}`}${searchParams.size ? `?${searchParams.toString()}` : ''}`;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -31,6 +38,12 @@ export function Navbar() {
         </Link>
 
         <div className="flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto sm:gap-2">
+          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+            <Link href={languageHref} hrefLang={locale === 'zh-Hans' ? 'en' : 'zh-Hans'} aria-label={locale === 'zh-Hans' ? '切换至英文' : 'Switch to Chinese'} onClick={() => { document.cookie = `nofeego_locale=${locale === 'zh-Hans' ? 'en' : 'zh-Hans'};path=/;max-age=31536000;samesite=lax`; }} data-no-translate>
+              <Languages className="mr-1.5 h-4 w-4" />
+              <span>{locale === 'zh-Hans' ? '切换至英文' : '中文'}</span>
+            </Link>
+          </Button>
           <Button asChild variant="outline" size="sm" className="px-2 sm:px-3">
             <Link href="/list-your-property">
               <PlusCircle className="mr-1.5 h-4 w-4" />
