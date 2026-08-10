@@ -40,7 +40,9 @@ export function LocaleProvider({ locale, children }: { locale: Locale; children:
           if (translated !== value) element.setAttribute(attribute, translated);
         }
       }
-      for (const anchor of root.querySelectorAll<HTMLAnchorElement>('a[href]')) anchor.setAttribute('href', localizeHref(anchor.getAttribute('href') ?? '', locale));
+      for (const anchor of root.querySelectorAll<HTMLAnchorElement>('a[href]:not([data-no-localize])')) {
+        anchor.setAttribute('href', localizeHref(anchor.getAttribute('href') ?? '', locale));
+      }
     };
 
     translateElement(document.body);

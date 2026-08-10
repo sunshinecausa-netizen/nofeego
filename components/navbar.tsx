@@ -39,10 +39,10 @@ export function Navbar() {
 
         <div className="flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto sm:gap-2">
           <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
-            <Link href={languageHref} hrefLang={locale === 'zh-Hans' ? 'en' : 'zh-Hans'} aria-label={locale === 'zh-Hans' ? '切换至英文' : 'Switch to Chinese'} onClick={() => { document.cookie = `nofeego_locale=${locale === 'zh-Hans' ? 'en' : 'zh-Hans'};path=/;max-age=31536000;samesite=lax`; }} data-no-translate>
+            <a href={languageHref} hrefLang={locale === 'zh-Hans' ? 'en' : 'zh-Hans'} aria-label={locale === 'zh-Hans' ? '切换至英文' : 'Switch to Chinese'} onClick={() => { document.cookie = `nofeego_locale=${locale === 'zh-Hans' ? 'en' : 'zh-Hans'};path=/;max-age=31536000;samesite=lax`; }} data-no-translate data-no-localize>
               <Languages className="mr-1.5 h-4 w-4" />
               <span>{locale === 'zh-Hans' ? '切换至英文' : '中文'}</span>
-            </Link>
+            </a>
           </Button>
           <Button asChild variant="outline" size="sm" className="px-2 sm:px-3">
             <Link href="/list-your-property">
