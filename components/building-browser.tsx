@@ -73,7 +73,7 @@ const COMPARE_AMENITIES = [
 ] as const;
 
 function formatStartingRent(value: number | undefined) {
-  return value == null ? 'Not available' : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
+  return value == null ? 'Unknown' : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
 }
 
 type Props = {

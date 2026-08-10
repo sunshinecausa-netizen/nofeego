@@ -34,11 +34,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     // Buildings
-    const { data: buildings } = await supabase.from('buildings').select('slug, updated_at');
+    const { data: buildings } = await supabase.from('public_buildings').select('slug, updated_at');
     buildings?.forEach((b) => {
       entries.push({
         url: `${baseUrl}/buildings/${b.slug}`,
-        lastModified: new Date(b.updated_at),
+        lastModified: new Date(String(b.updated_at)),
         changeFrequency: 'weekly',
         priority: 0.7,
       });

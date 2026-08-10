@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import type { Listing, Building, Neighborhood, SearchFilters } from '@/lib/types';
 import type { Json } from '@/lib/database.types';
+import { fetchPublicBuildingBySlug } from '@/lib/public-buildings';
 
 // ==========================================
 // Neighborhoods
@@ -47,13 +48,7 @@ export async function fetchFeaturedBuildings(limit = 6): Promise<Building[]> {
 }
 
 export async function fetchBuildingBySlug(slug: string): Promise<Building | null> {
-  const { data, error } = await supabase
-    .from('buildings')
-    .select('*, neighborhoods(*)')
-    .eq('slug', slug)
-    .maybeSingle();
-  if (error) throw error;
-  return data as Building | null;
+  return fetchPublicBuildingBySlug(slug);
 }
 
 export async function fetchBuildingsByNeighborhood(neighborhoodId: string): Promise<Building[]> {

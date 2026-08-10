@@ -5,16 +5,15 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin, Calendar, Building as BuildingIcon, ArrowLeft, Maximize, Train,
-  ShoppingBag, Utensils, Mail, Phone, Check, Heart, GitCompareArrows,
+  ShoppingBag, Utensils, Check, Heart, GitCompareArrows,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { ListingCard } from '@/components/listing-card';
 import { MapPlaceholder } from '@/components/map-placeholder';
 import { FaqSection } from '@/components/faq-section';
-import type { Building, Listing } from '@/lib/types';
-import { fetchBuildingBySlug, fetchListingsByBuilding } from '@/lib/services';
+import type { Building } from '@/lib/types';
+import { fetchBuildingBySlug } from '@/lib/services';
 import { useTenantData } from '@/lib/account/tenant-data-context';
 
 export default function BuildingDetailPage() {
@@ -22,7 +21,6 @@ export default function BuildingDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
   const [building, setBuilding] = useState<Building | null>(null);
-  const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,10 +29,6 @@ export default function BuildingDetailPage() {
       try {
         const b = await fetchBuildingBySlug(slug);
         setBuilding(b as Building);
-        if (b) {
-          const l = await fetchListingsByBuilding((b as Building).id);
-          setListings(l);
-        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -68,10 +62,7 @@ export default function BuildingDetailPage() {
     ? building.gallery
     : [building.hero_image].filter(Boolean) as string[];
 
-  const mapListings = listings.map((l) => ({
-    id: l.id, slug: l.slug, title: l.title, price: l.price,
-    latitude: l.latitude ?? building.latitude, longitude: l.longitude ?? building.longitude,
-  }));
+  const mapListings = [{ id: building.id, slug: building.slug, title: building.name, price: 0, latitude: building.latitude, longitude: building.longitude }];
   const isFavorite = favoriteIds.includes(building.id);
   const isCompared = compareIds.includes(building.id);
 
@@ -138,20 +129,10 @@ export default function BuildingDetailPage() {
               </div>
             )}
 
-            {/* Available Apartments */}
+            {/* Public inventory is intentionally coarse. */}
             <div className="mb-8">
-              <h3 className="font-serif text-xl font-bold mb-4">Available Apartments ({listings.length})</h3>
-              {listings.length === 0 ? (
-                <div className="text-center py-12 bg-muted/30 rounded-xl">
-                  <p className="text-muted-foreground">No units currently available in this building.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {listings.map((listing) => (
-                    <ListingCard key={listing.id} listing={listing} />
-                  ))}
-                </div>
-              )}
+              <h3 className="font-serif text-xl font-bold mb-4">Availability</h3>
+              <div className="rounded-xl bg-muted/30 p-6"><p className="text-muted-foreground">Contact NoFeeGo for current availability and rental details.</p></div>
             </div>
 
             {/* Transportation */}
@@ -217,18 +198,6 @@ export default function BuildingDetailPage() {
                 <Button variant="outline" className="w-full mb-4" size="lg">
                   Contact Agent
                 </Button>
-                {building.contact_email && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Mail className="h-4 w-4 text-primary" />
-                    <a href={`mailto:${building.contact_email}`} className="hover:text-foreground">{building.contact_email}</a>
-                  </div>
-                )}
-                {building.contact_phone && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="h-4 w-4 text-primary" />
-                    <a href={`tel:${building.contact_phone}`} className="hover:text-foreground">{building.contact_phone}</a>
-                  </div>
-                )}
               </div>
 
               {/* Map */}
