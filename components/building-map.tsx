@@ -240,6 +240,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         const options = previewOptionsRef.current;
         previewRoot.render(<div className="space-y-3">{group.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onClose={closePreview} />)}</div>);
         infoWindow.setContent(content);
+        const markerClearance = labels.length * 25 + 24;
+        infoWindow.setOptions({ pixelOffset: new google.maps.Size(0, -markerClearance) });
         infoWindow.setPosition(position);
         infoWindow.open({ map, shouldFocus: false });
       };
