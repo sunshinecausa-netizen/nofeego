@@ -96,6 +96,7 @@ function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: nu
 export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingClose, onBuildingHover, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
+  const trafficLayerRef = useRef<google.maps.TrafficLayer | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const projectionOverlayRef = useRef<google.maps.OverlayView | null>(null);
   const areaPolygonsRef = useRef<google.maps.Polygon[]>([]);
@@ -112,6 +113,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const [screenPath, setScreenPath] = useState<ScreenPoint[]>([]);
   const [areaCount, setAreaCount] = useState<number | null>(null);
   const [areaTotal, setAreaTotal] = useState(0);
+  const [mapTypeId, setMapTypeId] = useState<'roadmap' | 'satellite'>('roadmap');
+  const [liveTraffic, setLiveTraffic] = useState(false);
   const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null && priceLabels(building, selectedBedrooms).length > 0), [buildings, selectedBedrooms]);
   const locationGroups = useMemo(() => Array.from(validBuildings.reduce((groups, building) => {
     const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
@@ -161,6 +164,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       gestureHandling: 'greedy',
       scrollwheel: true,
     });
+    const trafficLayer = new google.maps.TrafficLayer({ autoRefresh: true });
+    trafficLayerRef.current = trafficLayer;
     const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 720 });
     infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
@@ -294,6 +299,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       cancelClose();
       cancelPreview();
       projectionOverlay.setMap(null);
+      trafficLayer.setMap(null);
+      trafficLayerRef.current = null;
       projectionOverlayRef.current = null;
       areaPolygonsRef.current.forEach((polygon) => polygon.setMap(null));
       areaPolygonsRef.current = [];
@@ -305,6 +312,14 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       markers.forEach((marker) => marker.setMap(null));
     };
   }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, selectedBedrooms, validBuildings]);
+
+  useEffect(() => {
+    googleMapRef.current?.setMapTypeId(mapTypeId);
+  }, [mapTypeId]);
+
+  useEffect(() => {
+    trafficLayerRef.current?.setMap(liveTraffic ? googleMapRef.current : null);
+  }, [liveTraffic]);
 
   function pointFromEvent(event: React.PointerEvent<SVGSVGElement>): ScreenPoint {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -410,7 +425,12 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
 
   return <div className={cn('relative min-h-[420px] overflow-hidden bg-muted', className)}>
     <MapResultCount buildingCount={validBuildings.length} locationCount={locationGroups.length} />
-    <div className="absolute right-14 top-3 z-20 flex items-center gap-2">
+    <div className="absolute right-14 top-3 z-20 flex max-w-[calc(100%-5rem)] flex-wrap items-center justify-end gap-2">
+      <div className="flex overflow-hidden rounded-lg border border-border bg-white shadow-md" role="group" aria-label="Map display mode">
+        <button type="button" onClick={() => setMapTypeId('roadmap')} className={`min-h-11 px-3 text-sm font-semibold transition ${mapTypeId === 'roadmap' ? 'bg-primary text-white' : 'bg-white text-foreground hover:bg-muted'}`} aria-pressed={mapTypeId === 'roadmap'}>Map</button>
+        <button type="button" onClick={() => setMapTypeId('satellite')} className={`min-h-11 border-l border-border px-3 text-sm font-semibold transition ${mapTypeId === 'satellite' ? 'bg-primary text-white' : 'bg-white text-foreground hover:bg-muted'}`} aria-pressed={mapTypeId === 'satellite'}>Satellite</button>
+        <button type="button" onClick={() => setLiveTraffic((active) => !active)} className={`min-h-11 border-l border-border px-3 text-sm font-semibold transition ${liveTraffic ? 'bg-primary text-white' : 'bg-white text-foreground hover:bg-muted'}`} aria-pressed={liveTraffic}>Live Traffic</button>
+      </div>
       <button type="button" onClick={() => setDrawingMode((active) => !active)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold shadow-md ${drawingMode ? 'border-primary bg-primary text-white' : 'border-border bg-white text-foreground'}`} aria-pressed={drawingMode}><Pencil className="h-4 w-4" />{drawingMode ? 'Draw on map' : areaCount == null ? 'Draw area' : 'Add area'}</button>
       {areaCount != null && <><span className="rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-md">{areaTotal} {areaTotal === 1 ? 'area' : 'areas'} · {areaCount} selected</span><button type="button" onClick={clearArea} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-md"><RotateCcw className="h-4 w-4" />Clear</button></>}
     </div>
