@@ -29,6 +29,7 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [nextPath, setNextPath] = useState('/dashboard');
 
   const returnPath = () => {
     const value = new URLSearchParams(window.location.search).get('next');
@@ -36,6 +37,7 @@ export default function SignInPage() {
   };
 
   useEffect(() => {
+    queueMicrotask(() => setNextPath(returnPath()));
     if (!authLoading && user) router.replace(returnPath());
   }, [authLoading, router, user]);
 
@@ -125,7 +127,7 @@ export default function SignInPage() {
           </form>
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
-            <Link href="/sign-up" className="font-medium text-primary hover:underline">Create one</Link>
+            <Link href={`/sign-up?next=${encodeURIComponent(nextPath)}`} className="font-medium text-primary hover:underline">Create one</Link>
           </p>
         </div>
       </div>

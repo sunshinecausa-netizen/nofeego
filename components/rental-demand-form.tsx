@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-context';
 import { accountFetch } from '@/lib/account/client';
 
-export type RentalDemandContext = { buildingId: string; buildingSlug: string; buildingName: string; neighborhood: string; address: string };
+export type RentalDemandContext = { buildingId: string; buildingSlug: string; buildingName: string; neighborhood: string; address: string; unitId?: string; floorPlan?: string };
 type Draft = { name: string; email: string; phone: string; moveInDate: string; bedrooms: string; monthlyBudget: string; roommatePreferences: string; notes: string };
 const EMPTY_DRAFT: Draft = { name: '', email: '', phone: '', moveInDate: '', bedrooms: '', monthlyBudget: '', roommatePreferences: '', notes: '' };
 
