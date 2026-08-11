@@ -37,6 +37,9 @@ const PRICE_RANGES: ReadonlyArray<readonly [string, string]> = [...Array.from({ 
   return [`${min}-${max}`, `$${min.toLocaleString()}–$${(max - 1).toLocaleString()}`] as const;
 }), ['10000-plus', '$10,000+']];
 const DATE_SPECIFIC_MOVE_IN_OPTIONS = new Set(['exact', 'exact_7', 'exact_15']);
+const BEDROOM_OPTIONS = [['0', 'Studio'], ['1', '1 Bedroom'], ['2', '2 Bedrooms'], ['3', '3 Bedrooms'], ['4', '4 Bedrooms']] as const;
+const BATHROOM_OPTIONS = [['1', '1 Bathroom'], ['2', '2 Bathrooms'], ['3', '3 Bathrooms'], ['4', '4 Bathrooms'], ['5', '5 Bathrooms']] as const;
+const MOVE_IN_OPTIONS = [['this_month', 'ASAP this month'], ['end_this_month', 'End of this month'], ['early_next_month', 'Early next month'], ['middle_next_month', 'Middle of next month'], ['end_next_month', 'End of next month'], ['month_after_next', 'The month after next'], ['exact', 'Exact date'], ['exact_7', 'Exact date ±7 days'], ['exact_15', 'Exact date ±15 days']] as const;
 const PRIMARY_AMENITIES = [
   ['Elevator', 'Elevator'],
   ['Gym', 'Gym'],
@@ -90,21 +93,21 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     boroughs: initialFilters?.boroughs ?? [],
     neighborhoods: initialFilters?.neighborhoods ?? [],
     amenities: initialFilters?.amenities ?? [],
-    priceRange: initialFilters?.priceRange ?? '',
-    bedrooms: initialFilters?.bedrooms ?? '',
-    bathrooms: initialFilters?.bathrooms ?? '',
+    priceRanges: initialFilters?.priceRanges ?? [],
+    bedrooms: initialFilters?.bedrooms ?? [],
+    bathrooms: initialFilters?.bathrooms ?? [],
     moveInDate: initialFilters?.moveInDate ?? '',
-    moveInFlex: initialFilters?.moveInFlex ?? 'flexible',
+    moveInFlex: initialFilters?.moveInFlex ?? [],
   };
   const [query, setQuery] = useState(starting.search);
   const [boroughs, setBoroughs] = useState<string[]>(starting.boroughs);
   const [neighborhoods, setNeighborhoods] = useState<string[]>(starting.neighborhoods);
   const [amenities, setAmenities] = useState<string[]>(starting.amenities);
-  const [priceRange, setPriceRange] = useState(starting.priceRange);
-  const [bedrooms, setBedrooms] = useState(starting.bedrooms);
-  const [bathrooms, setBathrooms] = useState(starting.bathrooms);
+  const [priceRanges, setPriceRanges] = useState<string[]>(starting.priceRanges);
+  const [bedrooms, setBedrooms] = useState<string[]>(starting.bedrooms);
+  const [bathrooms, setBathrooms] = useState<string[]>(starting.bathrooms);
   const [moveInDate, setMoveInDate] = useState(starting.moveInDate);
-  const [moveInFlex, setMoveInFlex] = useState(starting.moveInFlex);
+  const [moveInFlex, setMoveInFlex] = useState<string[]>(starting.moveInFlex);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('map');
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -115,7 +118,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const error = initialError;
   const route = mode === 'search' ? '/search' : '/';
   const pageCount = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
-  const activeFilterCount = [query, priceRange, bedrooms, bathrooms, moveInFlex !== 'flexible' ? moveInFlex : '', DATE_SPECIFIC_MOVE_IN_OPTIONS.has(moveInFlex) ? moveInDate : ''].filter(Boolean).length + boroughs.length + neighborhoods.length + amenities.length;
+  const activeFilterCount = [query, moveInFlex.some((value) => DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) ? moveInDate : ''].filter(Boolean).length + priceRanges.length + bedrooms.length + bathrooms.length + moveInFlex.length + boroughs.length + neighborhoods.length + amenities.length;
   const comparedBuildings = useMemo(() => result.buildings.filter((building) => compareIds.includes(building.id)), [compareIds, result.buildings]);
 
   function href(page: number, values: BuildingFilters = starting) {
@@ -124,22 +127,26 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     values.boroughs?.forEach((item) => params.append('borough', item));
     values.neighborhoods?.forEach((item) => params.append('neighborhood', item));
     values.amenities?.forEach((item) => params.append('amenity', item));
-    if (values.priceRange) params.set('price', values.priceRange);
-    if (values.bedrooms) params.set('bedrooms', values.bedrooms);
-    if (values.bathrooms) params.set('bathrooms', values.bathrooms);
-    if (values.moveInFlex && values.moveInFlex !== 'flexible') params.set('moveInFlex', values.moveInFlex);
-    if (values.moveInFlex && DATE_SPECIFIC_MOVE_IN_OPTIONS.has(values.moveInFlex) && values.moveInDate) params.set('moveInDate', values.moveInDate);
+    values.priceRanges?.forEach((item) => params.append('price', item));
+    values.bedrooms?.forEach((item) => params.append('bedrooms', item));
+    values.bathrooms?.forEach((item) => params.append('bathrooms', item));
+    values.moveInFlex?.forEach((item) => params.append('moveInFlex', item));
+    if (values.moveInFlex?.some((value) => DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) && values.moveInDate) params.set('moveInDate', values.moveInDate);
     if (page > 1) params.set('page', String(page));
     return `${route}${params.size ? `?${params}` : ''}`;
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    window.location.assign(href(1, { search: query, boroughs, neighborhoods, amenities, priceRange, bedrooms, bathrooms, moveInDate, moveInFlex }));
+    window.location.assign(href(1, { search: query, boroughs, neighborhoods, amenities, priceRanges, bedrooms, bathrooms, moveInDate, moveInFlex }));
   }
 
   function toggleAmenity(value: string, checked: boolean) {
     setAmenities((current) => checked ? [...new Set([...current, value])] : current.filter((item) => item !== value));
+  }
+
+  function toggleValue(setter: React.Dispatch<React.SetStateAction<string[]>>, value: string, checked: boolean) {
+    setter((current) => checked ? [...new Set([...current, value])] : current.filter((item) => item !== value));
   }
 
   function toggleNeighborhood(value: string, checked: boolean) {
@@ -165,21 +172,21 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     setBoroughs([]);
     setNeighborhoods([]);
     setAmenities([]);
-    setPriceRange('');
-    setBedrooms('');
-    setBathrooms('');
+    setPriceRanges([]);
+    setBedrooms([]);
+    setBathrooms([]);
     setMoveInDate('');
-    setMoveInFlex('flexible');
+    setMoveInFlex([]);
   }
 
   const draftTags = [
     ...(query.trim() ? [{ type: 'search', value: query.trim(), label: `Search: ${query.trim()}` }] : []),
     ...boroughs.map((value) => ({ type: 'borough', value, label: value })),
     ...neighborhoods.map((value) => ({ type: 'neighborhood', value, label: value })),
-    ...(priceRange ? [{ type: 'price', value: priceRange, label: PRICE_RANGES.find(([value]) => value === priceRange)?.[1] ?? priceRange }] : []),
-    ...(bedrooms ? [{ type: 'bedrooms', value: bedrooms, label: bedrooms === '0' ? 'Studio' : `${bedrooms} bed${bedrooms === '1' ? '' : 's'}` }] : []),
-    ...(bathrooms ? [{ type: 'bathrooms', value: bathrooms, label: `${bathrooms}+ baths` }] : []),
-    ...(moveInFlex !== 'flexible' ? [{ type: 'moveIn', value: moveInFlex, label: 'Move-in selected' }] : []),
+    ...priceRanges.map((value) => ({ type: 'price', value, label: PRICE_RANGES.find(([key]) => key === value)?.[1] ?? value })),
+    ...bedrooms.map((value) => ({ type: 'bedrooms', value, label: value === '0' ? 'Studio' : `${value} Bedroom${value === '1' ? '' : 's'}` })),
+    ...bathrooms.map((value) => ({ type: 'bathrooms', value, label: `${value} Bathroom${value === '1' ? '' : 's'}` })),
+    ...moveInFlex.map((value) => ({ type: 'moveIn', value, label: value.replaceAll('_', ' ') })),
     ...amenities.map((value) => ({ type: 'amenity', value, label: [...PRIMARY_AMENITIES, ...MORE_AMENITIES].find(([key]) => key === value)?.[1] ?? value })),
   ];
 
@@ -187,10 +194,10 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     if (type === 'search') setQuery('');
     else if (type === 'borough') toggleBorough(value, false);
     else if (type === 'neighborhood') toggleNeighborhood(value, false);
-    else if (type === 'price') setPriceRange('');
-    else if (type === 'bedrooms') setBedrooms('');
-    else if (type === 'bathrooms') setBathrooms('');
-    else if (type === 'moveIn') { setMoveInFlex('flexible'); setMoveInDate(''); }
+    else if (type === 'price') toggleValue(setPriceRanges, value, false);
+    else if (type === 'bedrooms') toggleValue(setBedrooms, value, false);
+    else if (type === 'bathrooms') toggleValue(setBathrooms, value, false);
+    else if (type === 'moveIn') { toggleValue(setMoveInFlex, value, false); if (DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) setMoveInDate(''); }
     else if (type === 'amenity') toggleAmenity(value, false);
   }
 
@@ -233,13 +240,13 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative">
           <summary className="flex h-10 cursor-pointer list-none items-center justify-start gap-1.5 rounded-md border border-input bg-background px-3 text-left text-sm font-normal leading-tight text-foreground"><SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" /><span>Filters</span>{activeFilterCount > 0 && <Badge variant="secondary" className="px-1">{activeFilterCount}</Badge>}<ChevronDown className="ml-auto h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary>
           <div className="mt-2 max-h-[70vh] w-full space-y-4 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-xl md:fixed md:left-1/2 md:right-auto md:top-auto md:z-40 md:mt-0 md:w-[min(92vw,820px)] md:-translate-x-1/2">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="min-w-0"><label htmlFor="price-range" className="mb-1 block text-xs font-medium text-muted-foreground">Price</label><select id="price-range" value={priceRange} onChange={(event) => setPriceRange(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any price</option>{PRICE_RANGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-        <div className="min-w-0"><label htmlFor="bedrooms" className="mb-1 block text-xs font-medium text-muted-foreground">Bedrooms</label><select id="bedrooms" value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any</option><option value="0">Studio</option>{Array.from({ length: 3 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} Bed{value > 1 ? 's' : ''}</option>)}</select></div>
-        <div className="min-w-0"><label htmlFor="bathrooms" className="mb-1 block text-xs font-medium text-muted-foreground">Bathrooms</label><select id="bathrooms" value={bathrooms} onChange={(event) => setBathrooms(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any</option>{Array.from({ length: 5 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}+</option>)}</select></div>
-        <div className="min-w-0"><label htmlFor="move-in-flex" className="mb-1 block text-xs font-medium text-muted-foreground">Move-in</label><select id="move-in-flex" value={moveInFlex} onChange={(event) => setMoveInFlex(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="flexible">Flexible</option><option value="this_month">ASAP this month</option><option value="end_this_month">End of this month</option><option value="early_next_month">Early next month</option><option value="middle_next_month">Middle of next month</option><option value="end_next_month">End of next month</option><option value="exact">Exact date</option><option value="exact_7">Exact date ±7 days</option><option value="exact_15">Exact date ±15 days</option></select></div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Price</legend><div className="grid grid-cols-2 gap-1">{PRICE_RANGES.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={priceRanges.includes(value)} onCheckedChange={(checked) => toggleValue(setPriceRanges, value, checked === true)} />{label}</label>)}</div></fieldset>
+            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Bedrooms</legend><div className="grid grid-cols-2 gap-1">{BEDROOM_OPTIONS.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={bedrooms.includes(value)} onCheckedChange={(checked) => toggleValue(setBedrooms, value, checked === true)} />{label}</label>)}</div></fieldset>
+            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Bathrooms</legend><div className="grid grid-cols-2 gap-1">{BATHROOM_OPTIONS.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={bathrooms.includes(value)} onCheckedChange={(checked) => toggleValue(setBathrooms, value, checked === true)} />{label}</label>)}</div></fieldset>
+            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Move-in</legend><div className="grid grid-cols-1 gap-1">{MOVE_IN_OPTIONS.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={moveInFlex.includes(value)} onCheckedChange={(checked) => toggleValue(setMoveInFlex, value, checked === true)} />{label}</label>)}</div></fieldset>
           </div>
-          {DATE_SPECIFIC_MOVE_IN_OPTIONS.has(moveInFlex) && <div className="max-w-52"><label htmlFor="move-in-date" className="mb-1 block text-xs text-muted-foreground">Move-in date</label><Input id="move-in-date" type="date" value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} /></div>}
+          {moveInFlex.some((value) => DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) && <div className="max-w-52"><label htmlFor="move-in-date" className="mb-1 block text-xs text-muted-foreground">Move-in date</label><Input id="move-in-date" type="date" value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} /></div>}
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Popular amenities</legend><div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">{QUICK_AMENITIES.map(([value, label]) => <button key={value} type="button" aria-pressed={amenities.includes(value)} onClick={() => toggleAmenity(value, !amenities.includes(value))} className={`min-h-11 rounded-md border px-3 text-left text-sm ${amenities.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-background hover:border-primary/50'}`}>{label}</button>)}</div></fieldset>
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">More amenities</legend><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">{FILTER_AMENITIES.map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
           </div>
