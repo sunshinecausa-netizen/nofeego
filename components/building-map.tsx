@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
-import { AlertTriangle, MapPin, Pencil, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BuildingCard } from '@/components/building-result-card';
 import type { BuildingInventorySummary } from '@/lib/public-buildings';
 import type { Building } from '@/lib/types';
 
@@ -44,6 +45,7 @@ type BuildingMapProps = {
   comparedBuildingIds?: string[];
   favoriteBuildingIds?: string[];
   onBuildingSelect?: (id: string) => void;
+  onBuildingClose?: () => void;
   onBuildingHover?: (id: string | null) => void;
   onAreaSelect?: (ids: string[]) => void;
   onCompareChange?: (building: Building, checked: boolean) => void;
@@ -62,7 +64,10 @@ function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLa
   const visible = selected.length > 0
     ? available.filter(({ bedroom }) => selected.includes(bedroom))
     : available.length > 0 ? [available.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest)] : [];
-  return visible.map(({ bedroom, price }) => ({ bedroom, text: selected.length > 1 ? `${BEDROOM_LABELS[bedroom]} $${price.toLocaleString('en-US')}` : `$${price.toLocaleString('en-US')}` }));
+  return visible.map(({ bedroom, price }) => {
+    const roundedPrice = Math.ceil(price / 50) * 50;
+    return { bedroom, text: selected.length > 1 ? `${BEDROOM_LABELS[bedroom]} $${roundedPrice.toLocaleString('en-US')}` : `$${roundedPrice.toLocaleString('en-US')}` };
+  });
 }
 
 function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) {
@@ -77,11 +82,6 @@ function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) 
   return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, scaledSize: new google.maps.Size(width, height), anchor: new google.maps.Point(width / 2, height) };
 }
 
-function MapBuildingCard({ item }: { item: BuildingMapItem }) {
-  const address = [item.building.address, item.building.city, item.building.state, item.building.zip_code].filter(Boolean).join(', ');
-  return <div className="w-[230px] max-w-full bg-transparent px-2 py-1.5 text-[#16324f]"><p className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-slate-600">{item.neighborhood ?? item.building.borough ?? 'New York metro'}</p><h2 className="mt-0.5 truncate font-serif text-base font-bold leading-5">{item.name}</h2><p className="mt-0.5 flex items-start gap-1 text-xs font-medium leading-4 text-[#29445f]"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{address || item.address}</span></p></div>;
-}
-
 function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: number; lng: number }>) {
   let inside = false;
   for (let index = 0, previous = area.length - 1; index < area.length; previous = index++) {
@@ -93,7 +93,7 @@ function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: nu
   return inside;
 }
 
-export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, onBuildingSelect, onBuildingHover, onAreaSelect, className }: BuildingMapProps) {
+export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingClose, onBuildingHover, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -103,6 +103,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const drawingModeRef = useRef(false);
   const pinnedPreviewIdRef = useRef<string | null>(null);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
+  const previewOptionsRef = useRef({ comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose });
+  previewOptionsRef.current = { comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose };
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
   const [loadError, setLoadError] = useState(false);
   const [drawingMode, setDrawingMode] = useState(false);
@@ -159,7 +161,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       gestureHandling: 'greedy',
       scrollwheel: true,
     });
-    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 260 });
+    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 720 });
     infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
     let previewTimer: number | null = null;
@@ -212,11 +214,21 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         previewRoot?.unmount();
         const content = document.createElement('div');
         content.className = 'building-map-preview';
-        content.style.cssText = 'width:min(230px,calc(100vw - 72px));overflow:visible;padding:1px;';
+        content.style.cssText = 'width:min(680px,calc(100vw - 72px));overflow:visible;padding:0;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
         previewRoot = createRoot(content);
-        previewRoot.render(<div className="divide-y divide-border">{group.map((item) => <MapBuildingCard key={item.id} item={item} />)}</div>);
+        const closePreview = () => {
+          pinnedPreviewIdRef.current = null;
+          infoWindow.close();
+          onBuildingHover?.(null);
+          previewOptionsRef.current.onBuildingClose?.();
+          const rootToUnmount = previewRoot;
+          previewRoot = null;
+          queueMicrotask(() => rootToUnmount?.unmount());
+        };
+        const options = previewOptionsRef.current;
+        previewRoot.render(<div className="space-y-3">{group.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onClose={closePreview} />)}</div>);
         infoWindow.setContent(content);
         infoWindow.setPosition(position);
         infoWindow.open({ map, shouldFocus: false });
@@ -238,17 +250,10 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       marker.addListener('mouseover', () => {
         if (drawingModeRef.current) return;
         if (pinnedPreviewIdRef.current && !group.some((item) => item.id === pinnedPreviewIdRef.current)) return;
-        cancelPreview();
-        previewTimer = window.setTimeout(() => {
-          if (drawingModeRef.current) return;
-          onBuildingHover?.(group[0].id);
-          openPreview();
-        }, 450);
+        onBuildingHover?.(group[0].id);
       });
       marker.addListener('mouseout', () => {
-        cancelPreview();
         onBuildingHover?.(null);
-        scheduleClose();
       });
       marker.addListener('click', () => {
         if (drawingModeRef.current) return;

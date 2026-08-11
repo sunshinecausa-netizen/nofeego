@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Building2, CalendarDays, Camera, Check, ChevronDown, Heart, Home, Layers3, MapPin, TrainFront, Users } from 'lucide-react';
+import { Building2, CalendarDays, Camera, Check, ChevronDown, Heart, Home, Layers3, MapPin, TrainFront, Users, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -34,9 +34,10 @@ type Props = {
   onFavoriteChange?: (building: Building, checked: boolean) => void;
   onHover?: (id: string | null) => void;
   onSelect?: (id: string) => void;
+  onClose?: () => void;
 };
 
-export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect }: Props) {
+export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect, onClose }: Props) {
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const heroImage = building.hero_image_url ?? building.hero_image;
   const images = [heroImage, ...(building.gallery ?? [])].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
@@ -54,7 +55,8 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           <div className={cn('relative overflow-hidden bg-muted', compact ? 'min-h-36' : 'min-h-40')}>
             {heroImage ? <Image src={heroImage} alt={`${building.name} exterior`} fill unoptimized sizes={compact ? '340px' : '(min-width: 1100px) 18vw, (min-width: 640px) 36vw, 100vw'} className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full min-h-36 items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-10 w-10 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
             <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">{images.length > 0 && <Badge className="gap-1 bg-foreground/80 text-background hover:bg-foreground/80"><Camera className="h-3 w-3" />{images.length}</Badge>}</div>
-            <button type="button" className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-card/95 shadow" aria-label={favorited ? `Remove ${building.name} from favorites` : `Save ${building.name}`} onClick={(event) => { event.stopPropagation(); onFavoriteChange?.(building, !favorited); }}><Heart className={cn('h-5 w-5', favorited && 'fill-destructive text-destructive')} /></button>
+            <button type="button" className={cn('absolute top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-card/95 shadow', onClose ? 'right-16' : 'right-3')} aria-label={favorited ? `Remove ${building.name} from favorites` : `Save ${building.name}`} onClick={(event) => { event.stopPropagation(); onFavoriteChange?.(building, !favorited); }}><Heart className={cn('h-5 w-5', favorited && 'fill-destructive text-destructive')} /></button>
+            {onClose && <button type="button" className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-foreground shadow" aria-label={`Close ${building.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}><X className="h-5 w-5" /></button>}
           </div>
 
           <div className="flex flex-col border-t border-border bg-muted/20 p-2" aria-label="Minimum base rent by apartment type">
