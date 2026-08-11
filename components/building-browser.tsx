@@ -195,7 +195,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     setMobileView('map');
     window.setTimeout(() => {
       const card = document.querySelector<HTMLElement>(`[data-building-id="${CSS.escape(id)}"]`);
-      card?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      card?.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
     }, 80);
   }, [setSelectedBuildingId, setMobileView]);
 

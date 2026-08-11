@@ -54,7 +54,7 @@ type ScreenPoint = { x: number; y: number };
 
 function MapBuildingCard({ item }: { item: BuildingMapItem }) {
   const address = [item.building.address, item.building.city, item.building.state, item.building.zip_code].filter(Boolean).join(', ');
-  return <div className="w-[300px] max-w-full bg-white px-3 py-2.5"><p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.neighborhood ?? item.building.borough ?? 'New York metro'}</p><h2 className="mt-1 truncate font-serif text-xl font-bold text-foreground">{item.name}</h2><p className="mt-1 flex items-start gap-1.5 text-sm leading-5 text-muted-foreground"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /><span>{address || item.address}</span></p></div>;
+  return <div className="w-[230px] max-w-full bg-white px-2 py-1.5"><p className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">{item.neighborhood ?? item.building.borough ?? 'New York metro'}</p><h2 className="mt-0.5 truncate font-serif text-base font-bold leading-5 text-foreground">{item.name}</h2><p className="mt-0.5 flex items-start gap-1 text-xs leading-4 text-muted-foreground"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{address || item.address}</span></p></div>;
 }
 
 function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: number; lng: number }>) {
@@ -133,7 +133,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       gestureHandling: 'greedy',
       scrollwheel: true,
     });
-    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 380 });
+    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 260 });
     infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
     let previewTimer: number | null = null;
@@ -193,7 +193,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         cancelClose();
         previewRoot?.unmount();
         const content = document.createElement('div');
-        content.style.cssText = 'width:min(300px,calc(100vw - 72px));max-height:min(360px,calc(100vh - 160px));overflow:auto;padding:2px;';
+        content.style.cssText = 'width:min(230px,calc(100vw - 72px));max-height:min(260px,calc(100vh - 160px));overflow:auto;padding:1px;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
         previewRoot = createRoot(content);
