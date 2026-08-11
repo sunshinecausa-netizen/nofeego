@@ -17,7 +17,7 @@ const CORE_AMENITIES = [
 ] as const;
 
 function formatCurrency(value: number) {
-  return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.ceil(value / 50) * 50)}+`;
+  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.ceil(value / 50) * 50)}+`;
 }
 
 type Props = {
@@ -43,7 +43,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const savedAndCompared = favorited && compared;
 
   return (
-    <article data-building-id={building.id} className={cn('group relative overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:border-primary/30 hover:shadow-md', compact ? 'w-full' : 'min-h-[300px] cursor-pointer hover:-translate-y-0.5', highlighted ? 'border-primary ring-2 ring-primary/20' : 'border-border')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
+    <article data-building-id={building.id} className={cn('group relative overflow-hidden bg-white transition duration-200', compact ? 'w-full rounded-none border-0 shadow-none' : 'min-h-[300px] cursor-pointer rounded-2xl border shadow-sm focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', !compact && (highlighted ? 'border-primary ring-2 ring-primary/20' : 'border-border'))} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
       <div className={cn('grid min-h-[300px] grid-cols-1', !compact && 'sm:grid-cols-[43%_57%]')}>
         {!compact && <div className="relative min-h-[260px] overflow-hidden bg-muted sm:min-h-full">
           {heroImage ? <Image src={heroImage} alt={`${building.name} interior`} fill unoptimized sizes="(min-width: 640px) 43vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full min-h-[260px] items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-14 w-14 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
@@ -60,7 +60,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           {onClose && <button type="button" className="absolute right-3 top-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-foreground shadow" aria-label={`Close ${building.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}><X className="h-5 w-5" /></button>}
 
           <div className="mt-6 grid grid-cols-4 border-y border-border/70 py-4" aria-label="Starting base rents by apartment type">
-            {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className={cn('min-w-0 px-2 text-center', index > 0 && 'border-l border-border')}><p className="whitespace-nowrap text-sm font-medium text-navy">{label}</p><p className={cn('mt-1 whitespace-nowrap font-serif font-semibold text-navy', compact ? 'text-base' : 'text-xl')}>{minimum != null ? formatCurrency(minimum) : '—'}</p></div>; })}
+            {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className={cn('min-w-0 px-2 text-center', index > 0 && 'border-l border-border')}><p className="whitespace-nowrap text-sm font-medium text-navy">{label}</p><p className={cn('mt-1 whitespace-nowrap font-semibold text-navy', compact ? 'text-base' : 'text-xl')}>{minimum != null ? formatCurrency(minimum) : '—'}</p></div>; })}
           </div>
 
           <div className="grid grid-cols-4 py-4" aria-label="Building amenities">
@@ -68,7 +68,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           </div>
 
           <div className="mt-auto grid grid-cols-2 gap-3">
-            <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span className="whitespace-normal text-sm font-bold leading-5 text-navy">Find a roommate to share this home with.</span></Link></Button>
+            <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span className="text-sm font-bold leading-5 text-navy"><span className="block whitespace-nowrap">Find a roommate</span><span className="block whitespace-nowrap">to share this home with</span></span></Link></Button>
             <Button asChild className="h-20 px-4"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-3 h-8 w-8 shrink-0" /><span className="text-sm font-bold">Rent the entire unit</span></Link></Button>
           </div>
         </div>
