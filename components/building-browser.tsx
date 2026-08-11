@@ -310,7 +310,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   return (
     <div className="flex min-h-screen flex-col bg-background md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden">
       <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view"><Button type="button" variant={mobileView === 'map' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('map')}><Map className="mr-2 h-4 w-4" />Map</Button><Button type="button" variant={mobileView === 'list' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('list')}><List className="mr-2 h-4 w-4" />List</Button></div>
-      <div className="min-h-0 flex-1 md:grid md:grid-cols-2 min-[1100px]:grid-cols-[45fr_55fr]">
+      <div className="min-h-0 flex-1 md:grid md:grid-cols-2">
         <section className={`${mobileView === 'list' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-border bg-muted/25 md:flex`} aria-label="Building results list">
           <div className="shrink-0">{compactFilters}</div>
           <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2 sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>

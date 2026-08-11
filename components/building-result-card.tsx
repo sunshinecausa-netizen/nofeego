@@ -52,7 +52,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
         <div className="relative flex min-w-0 flex-col p-5 sm:p-6">
           <div className={cn('min-w-0', onClose ? 'pr-52' : 'pr-44')}>
             <p className="truncate text-sm font-bold uppercase tracking-[0.18em] text-primary">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
-            <h2 className={cn('mt-1 font-serif font-bold leading-tight text-navy transition group-hover:text-primary', compact ? 'break-words text-2xl' : 'truncate text-3xl')}>{building.name}</h2>
+            <h2 className={cn('mt-1 break-words font-serif font-bold leading-tight text-navy transition group-hover:text-primary', compact ? 'text-2xl' : 'text-3xl')}>{building.name}</h2>
             <p className="mt-1 flex items-start gap-1.5 text-base leading-6 text-muted-foreground"><MapPin className="mt-0.5 h-5 w-5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
           </div>
 
