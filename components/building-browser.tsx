@@ -191,7 +191,8 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
 
   const selectBuilding = useCallback((id: string) => {
     setSelectedBuildingId(id);
-  }, [setSelectedBuildingId]);
+    setMobileView('map');
+  }, [setSelectedBuildingId, setMobileView]);
 
   const selectAreaBuildings = useCallback((ids: string[]) => {
     void replaceCompare(ids);
@@ -247,7 +248,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       onCompareChange={toggleCompare}
       onFavoriteChange={toggleFavorite}
       onHover={setHoveredBuildingId}
-      onSelect={setSelectedBuildingId}
+      onSelect={selectBuilding}
     />
   ));
 
