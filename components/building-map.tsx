@@ -337,13 +337,32 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
 
   useEffect(() => {
     const activeMarkers = new Set<google.maps.Marker>();
-    if (hoveredBuildingId) activeMarkers.add(markersRef.current.get(hoveredBuildingId)!);
-    if (selectedBuildingId) activeMarkers.add(markersRef.current.get(selectedBuildingId)!);
+    const hoveredMarker = hoveredBuildingId ? markersRef.current.get(hoveredBuildingId) : undefined;
+    const selectedMarker = selectedBuildingId ? markersRef.current.get(selectedBuildingId) : undefined;
+    if (hoveredMarker) activeMarkers.add(hoveredMarker);
+    if (selectedMarker) activeMarkers.add(selectedMarker);
+    const designTokens = getComputedStyle(document.documentElement);
+    const markerColor = designTokens.getPropertyValue('--map-marker').trim() || '#DC2626';
+    const markerRingColor = designTokens.getPropertyValue('--map-marker-ring').trim() || '#ffffff';
     new Set(markersRef.current.values()).forEach((marker) => {
       const active = activeMarkers.has(marker);
-      marker.setZIndex(active ? 1000 : undefined);
-      marker.setAnimation(active ? google.maps.Animation.BOUNCE : null);
-      if (active) window.setTimeout(() => marker.setAnimation(null), 700);
+      const selected = marker === selectedMarker;
+      const label = marker.getLabel();
+      const multipleLocations = typeof label === 'object' && Boolean(label?.text);
+      const size = selected ? 48 : 30;
+      const center = size / 2;
+      const markerSvg = selected
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="rgba(220,38,38,0.24)"/><circle cx="24" cy="24" r="${multipleLocations ? 11 : 10}" fill="${markerColor}" stroke="${markerRingColor}" stroke-width="3"/></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${multipleLocations ? 9 : 8}" fill="${markerColor}" stroke="${markerRingColor}" stroke-width="2"/></svg>`;
+      marker.setIcon({
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(markerSvg)}`,
+        scaledSize: new google.maps.Size(size, size),
+        anchor: new google.maps.Point(center, center),
+        labelOrigin: new google.maps.Point(center, center),
+      });
+      marker.setZIndex(selected ? 2000 : active ? 1000 : undefined);
+      marker.setAnimation(selected ? google.maps.Animation.BOUNCE : null);
+      if (selected) window.setTimeout(() => marker.setAnimation(null), 900);
     });
   }, [hoveredBuildingId, selectedBuildingId]);
 
