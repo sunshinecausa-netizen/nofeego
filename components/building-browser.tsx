@@ -193,6 +193,10 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const selectBuilding = useCallback((id: string) => {
     setSelectedBuildingId(id);
     setMobileView('map');
+    window.setTimeout(() => {
+      const card = document.querySelector<HTMLElement>(`[data-building-id="${CSS.escape(id)}"]`);
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 80);
   }, [setSelectedBuildingId, setMobileView]);
 
   const focusBuildingFromCard = useCallback((id: string) => {
