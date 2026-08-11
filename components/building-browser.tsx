@@ -37,12 +37,6 @@ const PRICE_RANGES: ReadonlyArray<readonly [string, string]> = [...Array.from({ 
   return [`${min}-${max}`, `$${min.toLocaleString()}–$${(max - 1).toLocaleString()}`] as const;
 }), ['10000-plus', '$10,000+']];
 const DATE_SPECIFIC_MOVE_IN_OPTIONS = new Set(['exact', 'exact_7', 'exact_15']);
-const PET_OPTIONS = [
-  ['Small Dogs Allowed', 'Allows small dogs'],
-  ['Large Dogs Allowed', 'Allows large dogs'],
-  ['Cats Allowed', 'Allows cats'],
-  ['No Pets Allowed', 'No pets allowed'],
-] as const;
 const PRIMARY_AMENITIES = [
   ['Elevator', 'Elevator'],
   ['Gym', 'Gym'],
@@ -65,6 +59,8 @@ const MORE_AMENITIES = [
   ['Playroom', 'Playroom'],
   ['Wheelchair Accessible', 'Wheelchair Accessible'],
 ] as const;
+const QUICK_AMENITIES = PRIMARY_AMENITIES.slice(0, 6);
+const FILTER_AMENITIES = [...PRIMARY_AMENITIES.slice(6), ...MORE_AMENITIES] as const;
 const COMPARE_AMENITIES = [
   ['Doorman', ['Doorman']],
   ['Gym', ['Gym']],
@@ -184,7 +180,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     ...(bedrooms ? [{ type: 'bedrooms', value: bedrooms, label: `${bedrooms}+ beds` }] : []),
     ...(bathrooms ? [{ type: 'bathrooms', value: bathrooms, label: `${bathrooms}+ baths` }] : []),
     ...(moveInFlex !== 'flexible' ? [{ type: 'moveIn', value: moveInFlex, label: 'Move-in selected' }] : []),
-    ...amenities.map((value) => ({ type: 'amenity', value, label: [...PRIMARY_AMENITIES, ...PET_OPTIONS, ...MORE_AMENITIES].find(([key]) => key === value)?.[1] ?? value })),
+    ...amenities.map((value) => ({ type: 'amenity', value, label: [...PRIMARY_AMENITIES, ...MORE_AMENITIES].find(([key]) => key === value)?.[1] ?? value })),
   ];
 
   function removeDraftTag(type: string, value: string) {
@@ -236,7 +232,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative min-w-0"><summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-md border border-input bg-background px-3 text-sm"><span className="truncate">Borough and Neighborhood{boroughs.length + neighborhoods.length > 0 ? ` (${boroughs.length + neighborhoods.length})` : ''}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary><div className="mt-2 grid rounded-xl border border-border bg-white shadow-xl md:absolute md:left-0 md:top-10 md:z-40 md:mt-0 md:w-[620px] md:grid-cols-[180px_1fr]"><div className="border-b p-2 md:border-b-0 md:border-r">{BOROUGHS.map((borough) => <label key={borough} onMouseEnter={() => setHoveredBorough(borough)} onFocus={() => setHoveredBorough(borough)} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm ${hoveredBorough === borough ? 'bg-muted' : 'hover:bg-muted/60'}`}><Checkbox checked={boroughs.includes(borough)} onCheckedChange={(checked) => toggleBorough(borough, checked === true)} />{borough}</label>)}</div><div className="max-h-72 overflow-y-auto p-3">{NEIGHBORHOOD_GROUPS.filter((group) => group.borough === hoveredBorough).map((group) => { const selectedCount = group.options.filter(([value]) => neighborhoods.includes(value)).length; return <section key={group.title} className="mb-3"><label className="mb-1 flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-xs font-bold uppercase tracking-wide text-primary hover:bg-muted/60"><Checkbox checked={selectedCount === group.options.length ? true : selectedCount > 0 ? 'indeterminate' : false} onCheckedChange={(checked) => toggleNeighborhoodGroup(group.options, checked === true)} />{group.title}<span className="ml-auto text-[10px] font-medium normal-case text-muted-foreground">Select all</span></label>{group.options.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={neighborhoods.includes(value)} onCheckedChange={(checked) => toggleNeighborhood(value, checked === true)} />{label}</label>)}</section>; })}</div></div></details>
         <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative">
           <summary className="flex h-10 cursor-pointer list-none items-center justify-start gap-1.5 rounded-md border border-input bg-background px-3 text-left text-sm font-normal leading-tight text-foreground"><SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" /><span>Filters</span>{activeFilterCount > 0 && <Badge variant="secondary" className="px-1">{activeFilterCount}</Badge>}<ChevronDown className="ml-auto h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary>
-          <div className="mt-2 max-h-[70vh] w-full space-y-4 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-xl md:absolute md:right-0 md:top-10 md:z-40 md:mt-0 md:w-[min(92vw,760px)]">
+          <div className="mt-2 max-h-[70vh] w-full space-y-4 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-xl md:fixed md:left-1/2 md:right-auto md:top-auto md:z-40 md:mt-0 md:w-[min(92vw,820px)] md:-translate-x-1/2">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="min-w-0"><label htmlFor="price-range" className="mb-1 block text-xs font-medium text-muted-foreground">Price</label><select id="price-range" value={priceRange} onChange={(event) => setPriceRange(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any price</option>{PRICE_RANGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
         <div className="min-w-0"><label htmlFor="bedrooms" className="mb-1 block text-xs font-medium text-muted-foreground">Bedrooms</label><select id="bedrooms" value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Any</option>{Array.from({ length: 5 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}+</option>)}</select></div>
@@ -244,7 +240,8 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <div className="min-w-0"><label htmlFor="move-in-flex" className="mb-1 block text-xs font-medium text-muted-foreground">Move-in</label><select id="move-in-flex" value={moveInFlex} onChange={(event) => setMoveInFlex(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="flexible">Flexible</option><option value="this_month">ASAP this month</option><option value="end_this_month">End of this month</option><option value="early_next_month">Early next month</option><option value="middle_next_month">Middle of next month</option><option value="end_next_month">End of next month</option><option value="exact">Exact date</option><option value="exact_7">Exact date ±7 days</option><option value="exact_15">Exact date ±15 days</option></select></div>
           </div>
           {DATE_SPECIFIC_MOVE_IN_OPTIONS.has(moveInFlex) && <div className="max-w-52"><label htmlFor="move-in-date" className="mb-1 block text-xs text-muted-foreground">Move-in date</label><Input id="move-in-date" type="date" value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} /></div>}
-          <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Amenities</legend><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">{[...PRIMARY_AMENITIES, ...PET_OPTIONS, ...MORE_AMENITIES].map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
+          <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Popular amenities</legend><div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">{QUICK_AMENITIES.map(([value, label]) => <button key={value} type="button" aria-pressed={amenities.includes(value)} onClick={() => toggleAmenity(value, !amenities.includes(value))} className={`min-h-11 rounded-md border px-3 text-left text-sm ${amenities.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-background hover:border-primary/50'}`}>{label}</button>)}</div></fieldset>
+          <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">More amenities</legend><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">{FILTER_AMENITIES.map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
           </div>
         </details>
         <Button type="submit" className="h-10 w-full justify-center px-3 text-sm"><Search className="mr-1.5 h-4 w-4" />Search</Button>
