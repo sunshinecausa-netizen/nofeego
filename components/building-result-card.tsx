@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Building2, Camera, Check, Clock3, Heart, Home, MapPin, TrainFront, Users } from 'lucide-react';
+import { Building2, Camera, Check, ChevronDown, Clock3, Heart, Home, MapPin, TrainFront, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -49,6 +50,7 @@ type Props = {
 };
 
 export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect }: Props) {
+  const [showAllAmenities, setShowAllAmenities] = useState(false);
   const href = `/buildings/${building.slug}`;
   const heroImage = building.hero_image_url ?? building.hero_image;
   const images = [heroImage, ...(building.gallery ?? [])].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
@@ -83,6 +85,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           <p className="mb-1.5 text-[11px] text-muted-foreground">{availabilityLabel[inventory?.availabilityStatus ?? 'unavailable']}</p>
 
           <div className="mb-1.5 grid grid-cols-2 gap-1">{CORE_AMENITIES.map((amenity) => { const confirmed = amenity.values.some((value) => amenities.has(value)); return <span key={amenity.label} className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium', confirmed ? 'bg-accent text-accent-foreground' : 'bg-muted/60 text-muted-foreground')}><Check className={cn('h-3 w-3 text-primary-hover', !confirmed && 'invisible')} />{amenity.label}{!confirmed && ' · Not verified'}</span>; })}</div>
+          {(building.amenities?.length ?? 0) > 0 && <div className="relative z-10 mb-1.5"><button type="button" className="flex min-h-8 w-full items-center justify-center gap-1 rounded-md border border-border/70 bg-white px-2 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground" aria-expanded={showAllAmenities} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setShowAllAmenities((value) => !value); }}>More amenities <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAllAmenities && 'rotate-180')} /></button>{showAllAmenities && <div className="mt-1.5 flex flex-wrap gap-1 rounded-md border border-border/60 bg-muted/20 p-2">{building.amenities?.map((amenity) => <span key={amenity} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-foreground shadow-sm">{amenity}</span>)}</div>}</div>}
 
           <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">{subway && <span className="inline-flex items-center gap-1"><TrainFront className="h-3 w-3" />{subway}</span>}{updateText && <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{updateText}</span>}</div>
           <div className="relative z-10 mt-auto border-t border-border/70 pt-2"><label className="mb-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={(event) => event.stopPropagation()}><Checkbox checked={compared} onCheckedChange={(checked) => onCompareChange?.(building, checked === true)} aria-label={`Save ${building.name} and add it to compare`} />Save and Compare</label><div className="grid grid-cols-1 gap-2 sm:grid-cols-2"><Button asChild size="sm" variant="outline" className="h-10 whitespace-normal px-3 text-xs leading-tight"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-1 h-4 w-4 shrink-0" />Find Someone to Rent With</Link></Button><Button asChild size="sm" className="h-10 whitespace-normal px-3 text-xs leading-tight"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-1 h-4 w-4 shrink-0" />Rent the Entire Place</Link></Button></div></div>
