@@ -171,7 +171,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       setStreetViewActive(panorama.getVisible());
       if (!panorama.getVisible()) setStreetViewError(null);
     });
-    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 720 });
+    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 920 });
     infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
     let previewTimer: number | null = null;
@@ -224,7 +224,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         previewRoot?.unmount();
         const content = document.createElement('div');
         content.className = 'building-map-preview';
-        content.style.cssText = 'width:min(680px,calc(100vw - 72px));overflow:visible;padding:0;';
+        content.style.cssText = 'width:min(880px,calc(100vw - 72px));overflow:visible;padding:0;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
         previewRoot = createRoot(content);
