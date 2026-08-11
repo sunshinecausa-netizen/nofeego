@@ -171,7 +171,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       setStreetViewActive(panorama.getVisible());
       if (!panorama.getVisible()) setStreetViewError(null);
     });
-    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 920 });
+    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 720 });
     infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
     let previewTimer: number | null = null;
@@ -224,7 +224,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         previewRoot?.unmount();
         const content = document.createElement('div');
         content.className = 'building-map-preview';
-        content.style.cssText = 'width:min(880px,calc(100vw - 72px));overflow:visible;padding:0;';
+        content.style.cssText = 'width:min(680px,calc(100vw - 72px));overflow:visible;padding:0;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
         previewRoot = createRoot(content);
@@ -238,7 +238,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
           queueMicrotask(() => rootToUnmount?.unmount());
         };
         const options = previewOptionsRef.current;
-        previewRoot.render(<div className="space-y-3">{group.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onClose={closePreview} />)}</div>);
+        previewRoot.render(<div className="space-y-3">{group.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted variant="map" onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onClose={closePreview} />)}</div>);
         infoWindow.setContent(content);
         const markerClearance = labels.length * 25 + 24;
         infoWindow.setOptions({ pixelOffset: new google.maps.Size(0, -markerClearance) });
