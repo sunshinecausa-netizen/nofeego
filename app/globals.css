@@ -79,6 +79,19 @@
   }
 }
 
+.gm-style .gm-style-iw-c:has(.building-map-preview) {
+  border: 1px solid rgba(232, 144, 36, 0.72);
+  background: rgba(232, 144, 36, 0.28);
+  box-shadow: 0 4px 14px rgba(22, 50, 79, 0.18);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.gm-style .gm-style-iw-tc:has(+ .gm-style-iw-c .building-map-preview)::after,
+.gm-style .gm-style-iw-tc:has(~ .gm-style-iw-c .building-map-preview)::after {
+  background: rgba(232, 144, 36, 0.5);
+}
+
 @layer base {
   * {
     @apply border-border;

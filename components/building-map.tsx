@@ -54,7 +54,7 @@ type ScreenPoint = { x: number; y: number };
 
 function MapBuildingCard({ item }: { item: BuildingMapItem }) {
   const address = [item.building.address, item.building.city, item.building.state, item.building.zip_code].filter(Boolean).join(', ');
-  return <div className="w-[230px] max-w-full bg-white px-2 py-1.5"><p className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">{item.neighborhood ?? item.building.borough ?? 'New York metro'}</p><h2 className="mt-0.5 truncate font-serif text-base font-bold leading-5 text-foreground">{item.name}</h2><p className="mt-0.5 flex items-start gap-1 text-xs leading-4 text-muted-foreground"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{address || item.address}</span></p></div>;
+  return <div className="w-[230px] max-w-full bg-transparent px-2 py-1.5 text-[#16324f]"><p className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-[#8a4f00]">{item.neighborhood ?? item.building.borough ?? 'New York metro'}</p><h2 className="mt-0.5 truncate font-serif text-base font-bold leading-5">{item.name}</h2><p className="mt-0.5 flex items-start gap-1 text-xs font-medium leading-4 text-[#29445f]"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{address || item.address}</span></p></div>;
 }
 
 function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: number; lng: number }>) {
@@ -193,6 +193,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         cancelClose();
         previewRoot?.unmount();
         const content = document.createElement('div');
+        content.className = 'building-map-preview';
         content.style.cssText = 'width:min(230px,calc(100vw - 72px));max-height:min(260px,calc(100vh - 160px));overflow:auto;padding:1px;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
