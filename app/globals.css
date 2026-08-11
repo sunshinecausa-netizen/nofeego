@@ -119,6 +119,14 @@ html.results-custom-scrollbar body::-webkit-scrollbar {
   display: none;
 }
 
+.results-scrollbar-track,
+.results-scrollbar-thumb {
+  visibility: visible !important;
+  opacity: 1 !important;
+  animation: none !important;
+  transition: none !important;
+}
+
 .gm-style .gm-style-iw-c:has(.building-map-preview) {
   border: 1px solid rgba(148, 163, 184, 0.46);
   background: rgba(248, 250, 252, 0.48);
