@@ -38,12 +38,13 @@ export async function fetchPublicBuildingBySlug(slug: string): Promise<Building 
   if (!response.ok) throw new Error('Unable to load building.'); const rows = await response.json() as Record<string, unknown>[]; return rows[0] ? publicBuilding(rows[0]) : null;
 }
 
-export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [] }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
+export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [], priceRange = '', bedrooms = '' }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) throw new Error('Public building data is not configured.');
   const endpoint = new URL('/rest/v1/public_buildings', url);
   endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('state', 'in.(NY,NJ)'); endpoint.searchParams.set('order', 'name.asc');
-  endpoint.searchParams.set('offset', String((Math.max(1, page) - 1) * pageSize)); endpoint.searchParams.set('limit', String(Math.min(500, Math.max(1, pageSize))));
+  const hasRentFilters = Boolean(priceRange || bedrooms);
+  endpoint.searchParams.set('offset', hasRentFilters ? '0' : String((Math.max(1, page) - 1) * pageSize)); endpoint.searchParams.set('limit', hasRentFilters ? '500' : String(Math.min(500, Math.max(1, pageSize))));
   const term = search.trim().replace(/[,%()]/g, ' ').replace(/\s+/g, ' ').slice(0, 100);
   if (term) endpoint.searchParams.set('or', `(name.ilike.*${term}*,address.ilike.*${term}*,neighborhood.ilike.*${term}*,borough.ilike.*${term}*)`);
   const safeBoroughs = [...new Set(boroughs.filter((x) => ALLOWED_BOROUGHS.has(x)))];
@@ -54,7 +55,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   if (safeAmenities.length) endpoint.searchParams.set('and', `(${safeAmenities.map((x) => `amenities.cs.{"${x}"}`).join(',')})`);
   const headers = { apikey: anonKey, Authorization: `Bearer ${anonKey}`, Prefer: 'count=exact' };
   const response = await fetch(endpoint, { cache: 'no-store', headers }); if (!response.ok) throw new Error('Unable to load buildings.');
-  const buildings = (await response.json() as Record<string, unknown>[]).map(publicBuilding);
+  const candidateBuildings = (await response.json() as Record<string, unknown>[]).map(publicBuilding);
   const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*');
   const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*');
   const [availabilityResponse, rentResponse] = await Promise.all([fetch(availability, { cache: 'no-store', headers }), fetch(rentSummary, { cache: 'no-store', headers })]);
@@ -63,7 +64,18 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   type RentRow = { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null };
   const rents = new Map<string, Partial<Record<0 | 1 | 2 | 3, number>>>();
   if (rentResponse.ok) for (const row of await rentResponse.json() as RentRow[]) rents.set(row.building_slug, Object.fromEntries([[0,row.studio_min_rent],[1,row.one_bed_min_rent],[2,row.two_bed_min_rent],[3,row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number')));
+  const selectedBedroom = ['0', '1', '2', '3'].includes(bedrooms) ? Number(bedrooms) as 0 | 1 | 2 | 3 : null;
+  const priceBounds = priceRange === '10000-plus' ? { min: 10000, max: Number.POSITIVE_INFINITY } : (() => { const match = /^(\d+)-(\d+)$/.exec(priceRange); return match ? { min: Number(match[1]), max: Number(match[2]) } : null; })();
+  const rentFilteredBuildings = candidateBuildings.filter((building) => {
+    const minimums = rents.get(building.slug) ?? {};
+    const values = selectedBedroom == null ? Object.values(minimums) : [minimums[selectedBedroom]];
+    const knownRents = values.filter((value): value is number => typeof value === 'number');
+    if (selectedBedroom != null && knownRents.length === 0) return false;
+    if (priceBounds && !knownRents.some((value) => value >= priceBounds.min && value < priceBounds.max)) return false;
+    return true;
+  });
+  const buildings = hasRentFilters ? rentFilteredBuildings.slice((Math.max(1, page) - 1) * pageSize, Math.max(1, page) * pageSize) : candidateBuildings;
   const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {} }]));
-  const total = Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
+  const total = hasRentFilters ? rentFilteredBuildings.length : Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   return { buildings, total, inventoryByBuilding };
 }
