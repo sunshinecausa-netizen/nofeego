@@ -199,13 +199,26 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         cancelClose();
         previewRoot?.unmount();
         const content = document.createElement('div');
-        content.style.cssText = 'max-height:min(620px,75vh);overflow:auto;padding:2px;';
+        content.style.cssText = 'width:min(340px,calc(100vw - 72px));max-height:min(520px,calc(100vh - 160px));overflow:auto;padding:2px;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
         previewRoot = createRoot(content);
         previewRoot.render(<div className="space-y-2">{group.map((item) => <MapBuildingCard key={item.id} item={item} compared={comparedBuildingIdsRef.current.has(item.id)} favorited={favoriteBuildingIdsRef.current.has(item.id)} onCompareChange={onCompareChange} onFavoriteChange={onFavoriteChange} />)}</div>);
         infoWindow.setContent(content);
         infoWindow.open(map, marker);
+      };
+
+      const focusAndOpenPreview = () => {
+        let opened = false;
+        const openOnce = () => {
+          if (opened) return;
+          opened = true;
+          openPreview();
+        };
+        google.maps.event.addListenerOnce(map, 'idle', openOnce);
+        if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
+        map.panTo(position);
+        window.setTimeout(openOnce, 600);
       };
 
       marker.addListener('mouseover', () => {
@@ -226,9 +239,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         if (drawingModeRef.current) return;
         const focusedBuilding = group[0];
         onBuildingSelect?.(focusedBuilding.id);
-        openPreview();
-        map.panTo(position);
-        if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
+        focusAndOpenPreview();
       });
       group.forEach((item) => markerRegistry.set(item.id, marker));
       return marker;
