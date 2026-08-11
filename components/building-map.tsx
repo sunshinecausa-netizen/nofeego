@@ -37,6 +37,7 @@ function MapResultCount({ buildingCount, locationCount }: { buildingCount: numbe
 
 type BuildingMapProps = {
   buildings: BuildingMapItem[];
+  selectedBedrooms?: string[];
   hoveredBuildingId?: string | null;
   selectedBuildingId?: string | null;
   selectionRequestKey?: number;
@@ -51,6 +52,30 @@ type BuildingMapProps = {
 };
 
 type ScreenPoint = { x: number; y: number };
+
+type PriceLabel = { bedroom: 0 | 1 | 2 | 3; text: string };
+const BEDROOM_LABELS: Record<PriceLabel['bedroom'], string> = { 0: 'Studio', 1: '1 Bed', 2: '2 Bed', 3: '3 Bed' };
+
+function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLabel[] {
+  const selected = [...new Set(selectedBedrooms.map(Number).filter((bedroom): bedroom is PriceLabel['bedroom'] => bedroom >= 0 && bedroom <= 3))];
+  const available = ([0, 1, 2, 3] as const).map((bedroom) => ({ bedroom, price: item.bedroomMinimums?.[bedroom] })).filter((entry): entry is { bedroom: PriceLabel['bedroom']; price: number } => typeof entry.price === 'number');
+  const visible = selected.length > 0
+    ? available.filter(({ bedroom }) => selected.includes(bedroom))
+    : available.length > 0 ? [available.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest)] : [];
+  return visible.map(({ bedroom, price }) => ({ bedroom, text: selected.length > 1 ? `${BEDROOM_LABELS[bedroom]} $${price.toLocaleString('en-US')}` : `$${price.toLocaleString('en-US')}` }));
+}
+
+function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) {
+  const rowHeight = 25;
+  const halo = selected ? 4 : 0;
+  const width = Math.max(62, ...labels.map(({ text }) => text.length * 7.1 + 22)) + halo * 2;
+  const bodyHeight = labels.length * rowHeight;
+  const height = bodyHeight + 8 + halo * 2;
+  const dividerLines = labels.slice(1).map((_, index) => `<line x1="${halo + 7}" x2="${width - halo - 7}" y1="${halo + (index + 1) * rowHeight}" y2="${halo + (index + 1) * rowHeight}" stroke="rgba(255,255,255,.35)"/>`).join('');
+  const text = labels.map((label, index) => `<text x="${width / 2}" y="${halo + index * rowHeight + 17}" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="14" font-weight="700">${label.text}</text>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${selected ? `<rect width="${width}" height="${bodyHeight + halo * 2}" rx="16" fill="rgba(220,38,38,.22)"/>` : ''}<rect x="${halo}" y="${halo}" width="${width - halo * 2}" height="${bodyHeight}" rx="12.5" fill="${color}"/><path d="M ${width / 2 - 5} ${halo + bodyHeight - 1} L ${width / 2} ${halo + bodyHeight + 7} L ${width / 2 + 5} ${halo + bodyHeight - 1} Z" fill="${color}"/>${dividerLines}${text}</svg>`;
+  return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, scaledSize: new google.maps.Size(width, height), anchor: new google.maps.Point(width / 2, height) };
+}
 
 function MapBuildingCard({ item }: { item: BuildingMapItem }) {
   const address = [item.building.address, item.building.city, item.building.state, item.building.zip_code].filter(Boolean).join(', ');
@@ -68,7 +93,7 @@ function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: nu
   return inside;
 }
 
-export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, onBuildingSelect, onBuildingHover, onAreaSelect, className }: BuildingMapProps) {
+export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, onBuildingSelect, onBuildingHover, onAreaSelect, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -85,7 +110,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   const [screenPath, setScreenPath] = useState<ScreenPoint[]>([]);
   const [areaCount, setAreaCount] = useState<number | null>(null);
   const [areaTotal, setAreaTotal] = useState(0);
-  const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null), [buildings]);
+  const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null && priceLabels(building, selectedBedrooms).length > 0), [buildings, selectedBedrooms]);
   const locationGroups = useMemo(() => Array.from(validBuildings.reduce((groups, building) => {
     const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
     const group = groups.get(key);
@@ -169,26 +194,17 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     const designTokens = getComputedStyle(document.documentElement);
     const markerColor = designTokens.getPropertyValue('--map-marker').trim() || '#DC2626';
     const markerClusterColor = designTokens.getPropertyValue('--map-marker-cluster').trim() || 'rgba(232, 144, 36, 0.28)';
-    const markerRingColor = designTokens.getPropertyValue('--map-marker-ring').trim() || '#ffffff';
     const markerLabelColor = designTokens.getPropertyValue('--map-marker-label').trim() || '#16324F';
     const markers = locationGroups.map((group) => {
       const [building] = group;
       const position = { lat: building.latitude!, lng: building.longitude! };
       bounds.extend(position);
-      const dotRadius = group.length > 1 ? 9 : 8;
-      const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${dotRadius}" fill="${markerColor}" stroke="${markerRingColor}" stroke-width="2"/></svg>`;
+      const labels = priceLabels(building, selectedBedrooms);
       const marker = new google.maps.Marker({
         map,
         position,
         title: group.map((item) => item.name).join(', '),
-        icon: {
-          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(markerSvg)}`,
-          scaledSize: new google.maps.Size(30, 30),
-          anchor: new google.maps.Point(15, 15),
-          labelOrigin: new google.maps.Point(15, 15),
-        },
-        shape: { type: 'circle', coords: [15, 15, 14] },
-        label: group.length > 1 ? { text: String(group.length), color: markerLabelColor, fontSize: '10px', fontWeight: '700' } : undefined,
+        icon: priceMarkerIcon(labels, markerColor),
       });
 
       const openPreview = () => {
@@ -283,7 +299,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       markerClusterer.clearMarkers();
       markers.forEach((marker) => marker.setMap(null));
     };
-  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, validBuildings]);
+  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, selectedBedrooms, validBuildings]);
 
   function pointFromEvent(event: React.PointerEvent<SVGSVGElement>): ScreenPoint {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -359,28 +375,16 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     if (selectedMarker) activeMarkers.add(selectedMarker);
     const designTokens = getComputedStyle(document.documentElement);
     const markerColor = designTokens.getPropertyValue('--map-marker').trim() || '#DC2626';
-    const markerRingColor = designTokens.getPropertyValue('--map-marker-ring').trim() || '#ffffff';
     new Set(markersRef.current.values()).forEach((marker) => {
       const active = activeMarkers.has(marker);
       const selected = marker === selectedMarker;
-      const label = marker.getLabel();
-      const multipleLocations = typeof label === 'object' && Boolean(label?.text);
-      const size = selected ? 48 : 30;
-      const center = size / 2;
-      const markerSvg = selected
-        ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="rgba(220,38,38,0.24)"/><circle cx="24" cy="24" r="${multipleLocations ? 11 : 10}" fill="${markerColor}" stroke="${markerRingColor}" stroke-width="3"/></svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="${multipleLocations ? 9 : 8}" fill="${markerColor}" stroke="${markerRingColor}" stroke-width="2"/></svg>`;
-      marker.setIcon({
-        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(markerSvg)}`,
-        scaledSize: new google.maps.Size(size, size),
-        anchor: new google.maps.Point(center, center),
-        labelOrigin: new google.maps.Point(center, center),
-      });
+      const item = validBuildings.find((building) => markersRef.current.get(building.id) === marker);
+      if (item) marker.setIcon(priceMarkerIcon(priceLabels(item, selectedBedrooms), markerColor, selected));
       marker.setZIndex(selected ? 2000 : active ? 1000 : undefined);
       marker.setAnimation(selected ? google.maps.Animation.BOUNCE : null);
       if (selected) window.setTimeout(() => marker.setAnimation(null), 900);
     });
-  }, [hoveredBuildingId, selectedBuildingId]);
+  }, [hoveredBuildingId, selectedBuildingId, selectedBedrooms, validBuildings]);
 
   if (!GOOGLE_MAPS_API_KEY || loadError) {
     return (
@@ -391,7 +395,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
           const x = ((building.longitude! + 74.08) / 0.3) * 100;
           const y = ((40.93 - building.latitude!) / 0.35) * 100;
           if (x < 0 || x > 100 || y < 0 || y > 100) return null;
-          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={building.name} className="group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full" style={{ left: `${x}%`, top: `${y}%` }}><span className="h-4 w-4 rounded-full border-2 border-[var(--map-marker-ring)] bg-[var(--map-marker)] transition-transform group-hover:scale-125" /></a>;
+          const labels = priceLabels(building, selectedBedrooms);
+          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={`${building.name}: ${labels.map((label) => label.text).join(', ')}`} className="group absolute -translate-x-1/2 -translate-y-full space-y-0.5" style={{ left: `${x}%`, top: `${y}%` }}>{labels.map((label) => <span key={label.bedroom} className="block whitespace-nowrap rounded-full bg-[var(--map-marker)] px-2.5 py-1 text-sm font-bold leading-none text-white shadow-sm transition-transform group-hover:scale-105">{label.text}</span>)}</a>;
         })}
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-white/95 px-3 py-2 text-sm shadow-sm"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" /><span>Interactive map unavailable. Building locations remain selectable in this fallback view.</span></div>
         </div>

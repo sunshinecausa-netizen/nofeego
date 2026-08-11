@@ -317,7 +317,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <div className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="space-y-3 p-3 sm:p-4">{resultCards}</div><Footer embedded /></div>
         </section>
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
-          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
+          <BuildingMap buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
         </section>
       </div>
       {compareIds.length > 0 && <>
