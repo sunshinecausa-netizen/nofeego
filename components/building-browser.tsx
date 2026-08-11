@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { BuildingMap } from '@/components/building-map';
 import { BuildingCard } from '@/components/building-result-card';
+import { Footer } from '@/components/footer';
 import type { Building } from '@/lib/types';
 import type { BuildingFilters, BuildingsPageResult } from '@/lib/public-buildings';
 import { useTenantData } from '@/lib/account/tenant-data-context';
@@ -299,7 +300,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <section className={`${mobileView === 'list' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-border bg-muted/25 md:flex`} aria-label="Building results list">
           <div className="shrink-0">{compactFilters}</div>
           <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2 sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{resultCards}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto"><div className="space-y-3 p-3 sm:p-4">{resultCards}</div><Footer embedded /></div>
         </section>
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
           <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
