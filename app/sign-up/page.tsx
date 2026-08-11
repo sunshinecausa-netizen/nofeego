@@ -30,6 +30,7 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const returnPath = () => { const value = new URLSearchParams(window.location.search).get('next'); return value?.startsWith('/') && !value.startsWith('//') ? value : '/'; };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +45,7 @@ export default function SignUpPage() {
     if (error) {
       setError(error);
     } else {
-      router.push('/');
+      router.push(returnPath());
     }
   };
 
@@ -53,7 +54,7 @@ export default function SignUpPage() {
     setGoogleLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}/sign-in?next=${encodeURIComponent(returnPath())}` },
     });
     if (error) {
       setError(error.message);

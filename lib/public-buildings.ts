@@ -4,6 +4,7 @@ export type PublicAvailabilityStatus = 'unavailable' | 'limited' | 'available';
 export type BuildingInventorySummary = {
   availabilityStatus: PublicAvailabilityStatus;
   bedroomMinimums: Partial<Record<0 | 1 | 2 | 3, number>>;
+  roommateInterestCount?: number;
   availableCount?: never; concessionText?: never; updatedAt?: never;
 };
 export type BuildingsPageResult = { buildings: Building[]; total: number; inventoryByBuilding: Record<string, BuildingInventorySummary> };
@@ -58,12 +59,15 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const candidateBuildings = (await response.json() as Record<string, unknown>[]).map(publicBuilding);
   const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*');
   const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*');
-  const [availabilityResponse, rentResponse] = await Promise.all([fetch(availability, { cache: 'no-store', headers }), fetch(rentSummary, { cache: 'no-store', headers })]);
+  const roommateCounts = new URL('/rest/v1/public_roommate_interest_counts', url); roommateCounts.searchParams.set('select', '*');
+  const [availabilityResponse, rentResponse, roommateResponse] = await Promise.all([fetch(availability, { cache: 'no-store', headers }), fetch(rentSummary, { cache: 'no-store', headers }), fetch(roommateCounts, { cache: 'no-store', headers })]);
   const bySlug = new Map<string, PublicAvailabilityStatus>();
   if (availabilityResponse.ok) for (const row of await availabilityResponse.json() as Array<{ building_slug: string; availability_status: PublicAvailabilityStatus }>) bySlug.set(row.building_slug, row.availability_status);
   type RentRow = { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null };
   const rents = new Map<string, Partial<Record<0 | 1 | 2 | 3, number>>>();
   if (rentResponse.ok) for (const row of await rentResponse.json() as RentRow[]) rents.set(row.building_slug, Object.fromEntries([[0,row.studio_min_rent],[1,row.one_bed_min_rent],[2,row.two_bed_min_rent],[3,row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number')));
+  const interestCounts = new Map<string, number>();
+  if (roommateResponse.ok) for (const row of await roommateResponse.json() as Array<{ building_id: string; interested_count: number }>) interestCounts.set(row.building_id, row.interested_count);
   const selectedBedrooms = bedrooms.filter((value) => ['0', '1', '2', '3', '4'].includes(value)).map(Number);
   const priceBounds = priceRanges.map((priceRange) => priceRange === '10000-plus' ? { min: 10000, max: Number.POSITIVE_INFINITY } : (() => { const match = /^(\d+)-(\d+)$/.exec(priceRange); return match ? { min: Number(match[1]), max: Number(match[2]) } : null; })()).filter((value): value is { min: number; max: number } => value != null);
   const rentFilteredBuildings = candidateBuildings.filter((building) => {
@@ -75,7 +79,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     return true;
   });
   const buildings = hasRentFilters ? rentFilteredBuildings.slice((Math.max(1, page) - 1) * pageSize, Math.max(1, page) * pageSize) : candidateBuildings;
-  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {} }]));
+  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, roommateInterestCount: interestCounts.get(b.id) }]));
   const total = hasRentFilters ? rentFilteredBuildings.length : Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   return { buildings, total, inventoryByBuilding };
 }

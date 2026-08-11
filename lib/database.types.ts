@@ -54,6 +54,30 @@ export interface Database {
         contact_phone: string | null; bedrooms: string | null; roommate_preferences: string | null;
         status: 'new' | 'Submitted' | 'In Review' | 'Responded' | 'Closed'; created_at: string; updated_at: string;
       }>;
+      roommate_profiles: Table<{
+        user_id: string; bio: string | null; notification_method: 'email' | 'sms'; contact_email: string | null;
+        contact_phone: string | null; contact_sharing_enabled: boolean; is_paused: boolean; created_at: string; updated_at: string;
+      }>;
+      roommate_preferences: Table<{
+        user_id: string; max_monthly_budget: number; move_in_date: string; move_in_flexibility: string; lease_term: string;
+        roommates_wanted: number; eligibility_status: string; credit_range: string; smoking: string; pets: string;
+        schedule: string; work_from_home: string; cleanliness: string; created_at: string; updated_at: string;
+      }>;
+      roommate_interests: Table<{
+        id: string; user_id: string; building_id: string; unit_id: string | null; floor_plan: string;
+        status: 'active' | 'paused' | 'withdrawn' | 'home_unavailable'; created_at: string; updated_at: string;
+      }>;
+      roommate_matches: Table<{
+        id: string; first_interest_id: string; second_interest_id: string; score: number;
+        status: 'potential' | 'notified' | 'connected' | 'declined' | 'closed'; created_at: string; updated_at: string;
+      }>;
+      roommate_consents: Table<{
+        id: string; user_id: string; interest_id: string | null; terms_version: string; privacy_accepted: boolean;
+        safety_accepted: boolean; disclaimer_accepted: boolean; accepted_at: string;
+      }>;
+      roommate_events: Table<{
+        id: string; user_id: string; interest_id: string | null; event_type: string; metadata: Json; created_at: string;
+      }>;
       property_submissions: Table<{
         id: string; user_id: string | null; submission_data: Json; status: string; listing_id: string | null;
         created_at: string; updated_at: string;
@@ -94,6 +118,7 @@ export interface Database {
       public_buildings: { Row: Partial<Database['public']['Tables']['buildings']['Row']> & { id: string; slug: string; name: string; address: string; city: string; state: string; is_active: boolean; updated_at: string }; Insert: never; Update: never; Relationships: [] };
       public_building_availability: { Row: { building_slug: string; availability_status: 'unavailable' | 'limited' | 'available' }; Insert: never; Update: never; Relationships: [] };
       public_building_rent_summary: { Row: { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }; Insert: never; Update: never; Relationships: [] };
+      public_roommate_interest_counts: { Row: { building_id: string; interested_count: number }; Insert: never; Update: never; Relationships: [] };
     };
     Functions: Record<string, never>;
     Enums: { partnership_status: PartnershipStatus; data_confidence: DataConfidence };
