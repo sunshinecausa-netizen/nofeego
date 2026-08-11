@@ -68,7 +68,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           </div>
 
           <div className="mt-auto grid grid-cols-2 gap-3">
-            <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span className="text-sm font-bold leading-5 text-navy"><span className="block whitespace-nowrap">Find a roommate</span><span className="block whitespace-nowrap">to share this home with</span></span></Link></Button>
+            <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span className="text-sm font-bold leading-5 text-navy"><span className="block whitespace-nowrap">Find a roommate</span><span className="block whitespace-nowrap">to share this home</span><span className="block whitespace-nowrap">with</span></span></Link></Button>
             <Button asChild className="h-20 px-4"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-3 h-8 w-8 shrink-0" /><span className="text-sm font-bold">Rent the entire unit</span></Link></Button>
           </div>
         </div>
