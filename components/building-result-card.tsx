@@ -51,7 +51,6 @@ type Props = {
 
 export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect }: Props) {
   const [showAllAmenities, setShowAllAmenities] = useState(false);
-  const href = `/buildings/${building.slug}`;
   const heroImage = building.hero_image_url ?? building.hero_image;
   const images = [heroImage, ...(building.gallery ?? [])].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
   const amenities = new Set(building.amenities ?? []);
@@ -85,7 +84,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
 
         <div className="flex min-w-0 flex-col p-3">
           <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
-          <h2 className="truncate font-serif text-lg font-bold text-foreground transition group-hover:text-primary"><Link href={href} className="relative z-10 hover:underline" onClick={(event) => event.stopPropagation()}>{building.name}</Link></h2>
+          <h2 className="truncate font-serif text-lg font-bold text-foreground transition group-hover:text-primary">{building.name}</h2>
           <p className="mb-1.5 flex items-start gap-1 text-xs leading-4 text-muted-foreground"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
           <p className="mb-1.5 text-[11px] text-muted-foreground">{availabilityLabel[inventory?.availabilityStatus ?? 'unavailable']}</p>
 

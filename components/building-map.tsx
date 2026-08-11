@@ -333,6 +333,10 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     if (!building || !map) return;
     map.panTo({ lat: building.latitude!, lng: building.longitude! });
     if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
+    const marker = markersRef.current.get(selectedBuildingId);
+    if (!marker) return;
+    const previewTimer = window.setTimeout(() => google.maps.event.trigger(marker, 'click'), 250);
+    return () => window.clearTimeout(previewTimer);
   }, [selectedBuildingId, validBuildings]);
 
   useEffect(() => {
