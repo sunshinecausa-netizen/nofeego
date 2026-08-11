@@ -19,7 +19,7 @@ export function RentalDemandForm({ mode, context }: { mode: 'entire' | 'roommate
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const title = mode === 'entire' ? 'Rent the Entire Place' : 'Find a Roommate to Share';
+  const title = mode === 'entire' ? 'Rent the Entire Unit' : 'Find a Roommate';
 
   useEffect(() => {
     queueMicrotask(() => {
