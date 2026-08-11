@@ -47,7 +47,6 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
       <div className={cn('grid min-h-[300px] grid-cols-1', !compact && 'sm:grid-cols-[43%_57%]')}>
         {!compact && <div className="relative min-h-[260px] overflow-hidden bg-muted sm:min-h-full">
           {heroImage ? <Image src={heroImage} alt={`${building.name} interior`} fill unoptimized sizes="(min-width: 640px) 43vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full min-h-[260px] items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-14 w-14 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
-          <button type="button" className="absolute right-4 top-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-foreground shadow-md" aria-label={favorited ? `Remove ${building.name} from favorites` : `Save ${building.name}`} aria-pressed={favorited} onClick={(event) => { event.stopPropagation(); onFavoriteChange?.(building, !favorited); }}><Heart className={cn('h-6 w-6', favorited && 'fill-destructive text-destructive')} /></button>
         </div>}
 
         <div className="relative flex min-w-0 flex-col p-5 sm:p-6">
@@ -69,7 +68,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           </div>
 
           <div className="mt-auto grid grid-cols-2 gap-3">
-            <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span><strong className="block text-sm text-navy">Find a roommate</strong><span className="mt-1 block whitespace-normal text-xs font-normal leading-4 text-muted-foreground">Find someone to share this home with.</span></span></Link></Button>
+            <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span className="whitespace-normal text-sm font-bold leading-5 text-navy">Find a roommate to share this home with.</span></Link></Button>
             <Button asChild className="h-20 px-4"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-3 h-8 w-8 shrink-0" /><span className="text-sm font-bold">Rent the entire unit</span></Link></Button>
           </div>
         </div>
