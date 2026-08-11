@@ -16,7 +16,7 @@ export const ZH_UI: Record<string, string> = {
   'Display Name': '显示名称', 'Early next month': '下月初', Email: '邮箱', 'End of next month': '下月底', 'End of this month': '本月底', 'Enter access details': '输入访问信息',
   'Exact date': '确切日期', 'Exact date ±7 days': '确切日期 ±7 天', 'Exact date ±15 days': '确切日期 ±15 天',
   'Failed to load Google Maps. Please check your API key.': 'Google 地图加载失败，请检查 API 密钥。', 'Featured Buildings': '精选楼宇', Filters: '筛选',
-  'Find Someone to Rent With': '寻找合租室友', Flexible: '灵活', Floors: '楼层', Furnished: '带家具', 'Google Maps API Key': 'Google 地图 API 密钥',
+  'Find Someone to Rent With': '寻找合租室友', 'Find a Roommate to Share': '寻找合租室友', Flexible: '灵活', Floors: '楼层', Furnished: '带家具', 'Google Maps API Key': 'Google 地图 API 密钥',
   'Hero Image URL': '主图链接', 'Highlights (comma-separated)': '特色（用逗号分隔）', 'Image URLs': '图片链接', 'Image URLs (one per line)': '图片链接（每行一个）', Inactive: '未启用',
   'Interactive map coming with Google Maps API': '互动地图将在配置 Google Maps API 后启用', 'Interactive map unavailable. Building locations remain selectable in this fallback view.': '互动地图暂不可用，仍可在备用视图中选择楼宇位置。', 'Interactive Map': '互动地图',
   Joined: '加入日期', 'Last Updated': '最后更新', Latitude: '纬度', 'Lease Term': '租期', 'List a Property': '发布房源', 'List Property': '发布房源', 'List Your Property': '发布您的房源', List: '列表',

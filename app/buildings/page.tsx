@@ -9,11 +9,11 @@ type BuildingsSearchParams = {
   borough?: string | string[];
   neighborhood?: string | string[];
   amenity?: string | string[];
-  price?: string;
-  bedrooms?: string;
-  bathrooms?: string;
+  price?: string | string[];
+  bedrooms?: string | string[];
+  bathrooms?: string | string[];
   moveInDate?: string;
-  moveInFlex?: string;
+  moveInFlex?: string | string[];
 };
 
 export default async function BuildingsPage({ searchParams }: { searchParams: Promise<BuildingsSearchParams> }) {
@@ -27,11 +27,11 @@ export default async function BuildingsPage({ searchParams }: { searchParams: Pr
     boroughs,
     neighborhoods,
     amenities,
-    priceRange: params.price ?? '',
-    bedrooms: params.bedrooms ?? '',
-    bathrooms: params.bathrooms ?? '',
+    priceRanges: Array.isArray(params.price) ? params.price : params.price ? [params.price] : [],
+    bedrooms: Array.isArray(params.bedrooms) ? params.bedrooms : params.bedrooms ? [params.bedrooms] : [],
+    bathrooms: Array.isArray(params.bathrooms) ? params.bathrooms : params.bathrooms ? [params.bathrooms] : [],
     moveInDate: params.moveInDate ?? '',
-    moveInFlex: params.moveInFlex ?? 'flexible',
+    moveInFlex: Array.isArray(params.moveInFlex) ? params.moveInFlex : params.moveInFlex ? [params.moveInFlex] : [],
   };
   let result: BuildingsPageResult = { buildings: [], total: 0, inventoryByBuilding: {} };
   let error: string | null = null;
