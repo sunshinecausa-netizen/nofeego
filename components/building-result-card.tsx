@@ -20,21 +20,8 @@ const CORE_AMENITIES = [
 const BEDROOM_PRICE_LABELS = [[0, 'Studio'], [1, '1 Bed'], [2, '2 Beds'], [3, '3 Beds']] as const;
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.ceil(value / 50) * 50);
 }
-
-function updatedLabel(value: string | null | undefined) {
-  if (!value) return null;
-  const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) return null;
-  const days = Math.max(0, Math.floor((Date.now() - timestamp) / 86_400_000));
-  if (days === 0) return 'Updated today';
-  if (days === 1) return 'Updated yesterday';
-  if (days <= 30) return `Updated ${days} days ago`;
-  return `Updated ${new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-}
-
-const availabilityLabel = { available: 'Availability confirmed', limited: 'Limited availability', unavailable: 'No availability currently confirmed' } as const;
 
 type Props = {
   building: Building;
@@ -54,7 +41,6 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const heroImage = building.hero_image_url ?? building.hero_image;
   const images = [heroImage, ...(building.gallery ?? [])].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
   const amenities = new Set(building.amenities ?? []);
-  const updateText = updatedLabel(building.updated_at);
   const subway = building.nearby_subway?.[0];
   const fullAddress = [building.address, building.city, building.state, building.zip_code].filter(Boolean).join(', ');
   const compact = variant === 'map';
@@ -72,7 +58,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           </div>
 
           <div className="flex flex-col border-t border-border bg-muted/20 p-2" aria-label="Minimum base rent by apartment type">
-            <p className="mb-1.5 flex flex-wrap items-baseline gap-1 text-primary"><span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Starting base rents</span>{updateText && <span className="text-[9px] font-medium tracking-normal">· {updateText}</span>}</p>
+            <p className="mb-1.5 flex flex-wrap items-baseline gap-1 text-muted-foreground"><span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Starting base rents</span><span className="text-[9px] font-medium normal-case tracking-normal">· Approximately</span></p>
             <div className="grid grid-cols-2 gap-1.5">{BEDROOM_PRICE_LABELS.map(([bedroom, label]) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className="min-w-0 rounded-md border border-border/60 bg-white px-2 py-1.5"><p className="text-[10px] font-medium text-muted-foreground">{label}</p><p className="truncate text-[11px] font-bold leading-4 text-foreground">{minimum != null ? formatCurrency(minimum) : hasStreetEasyRentData ? 'Unavailable' : 'Unknown'}</p></div>; })}</div>
             <div className="mt-2 grid grid-cols-3 border-t border-border/70 pt-2 text-[10px] font-semibold text-foreground" aria-label="Building facts">
               <span className="flex min-w-0 items-center gap-1.5 border-r border-border/70 px-1"><Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{building.total_units != null ? `${building.total_units} units` : 'Units unknown'}</span></span>
@@ -86,8 +72,6 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
           <h2 className="truncate font-serif text-lg font-bold text-foreground transition group-hover:text-primary">{building.name}</h2>
           <p className="mb-1.5 flex items-start gap-1 text-xs leading-4 text-muted-foreground"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
-          <p className="mb-1.5 text-[11px] text-muted-foreground">{availabilityLabel[inventory?.availabilityStatus ?? 'unavailable']}</p>
-
           <div className="mb-1.5 grid grid-cols-2 gap-1">{CORE_AMENITIES.map((amenity) => { const confirmed = amenity.values.some((value) => amenities.has(value)); return <span key={amenity.label} className={cn('inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium', confirmed ? 'bg-accent text-accent-foreground' : 'bg-muted/60 text-muted-foreground')}><Check className={cn('h-3 w-3 text-primary-hover', !confirmed && 'invisible')} />{amenity.label}{!confirmed && ' · Not verified'}</span>; })}</div>
           {(building.amenities?.length ?? 0) > 0 && <div className="relative z-10 mb-1"><button type="button" className="flex min-h-7 w-full items-center justify-center gap-1 rounded-md border border-border/70 bg-white px-2 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground" aria-expanded={showAllAmenities} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setShowAllAmenities((value) => !value); }}>More amenities <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAllAmenities && 'rotate-180')} /></button>{showAllAmenities && <div className="mt-1.5 flex flex-wrap gap-1 rounded-md border border-border/60 bg-muted/20 p-2">{building.amenities?.map((amenity) => <span key={amenity} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-foreground shadow-sm">{amenity}</span>)}</div>}</div>}
 

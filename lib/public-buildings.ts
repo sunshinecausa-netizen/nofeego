@@ -69,7 +69,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const rentFilteredBuildings = candidateBuildings.filter((building) => {
     const minimums = rents.get(building.slug) ?? {};
     const values = selectedBedrooms.length === 0 ? Object.values(minimums) : selectedBedrooms.map((bedroom) => minimums[bedroom as 0 | 1 | 2 | 3]);
-    const knownRents = values.filter((value): value is number => typeof value === 'number');
+    const knownRents = values.filter((value): value is number => typeof value === 'number').map((value) => Math.ceil(value / 50) * 50);
     if (selectedBedrooms.length > 0 && knownRents.length === 0) return false;
     if (priceBounds.length > 0 && !knownRents.some((value) => priceBounds.some((range) => value >= range.min && value < range.max))) return false;
     return true;
