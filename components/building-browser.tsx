@@ -37,8 +37,8 @@ const PRICE_RANGES: ReadonlyArray<readonly [string, string]> = [...Array.from({ 
   return [`${min}-${max}`, `$${min.toLocaleString()}–$${(max - 1).toLocaleString()}`] as const;
 }), ['10000-plus', '$10,000+']];
 const DATE_SPECIFIC_MOVE_IN_OPTIONS = new Set(['exact', 'exact_7', 'exact_15']);
-const BEDROOM_OPTIONS = [['0', 'Studio'], ['1', '1 Bedroom'], ['2', '2 Bedrooms'], ['3', '3 Bedrooms'], ['4', '4 Bedrooms']] as const;
-const BATHROOM_OPTIONS = [['1', '1 Bathroom'], ['2', '2 Bathrooms'], ['3', '3 Bathrooms'], ['4', '4 Bathrooms'], ['5', '5 Bathrooms']] as const;
+const BEDROOM_OPTIONS = [['0', 'Studio'], ['1', '1 Bedroom'], ['2', '2 Bedrooms'], ['3', '3 Bedrooms'], ['4', 'More than 3 Bedrooms']] as const;
+const BATHROOM_OPTIONS = [['1', '1 Bathroom'], ['2', '2 Bathrooms'], ['3', '3 Bathrooms'], ['4', 'More than 3 Bathrooms']] as const;
 const MOVE_IN_OPTIONS = [['this_month', 'ASAP this month'], ['end_this_month', 'End of this month'], ['early_next_month', 'Early next month'], ['middle_next_month', 'Middle of next month'], ['end_next_month', 'End of next month'], ['month_after_next', 'The month after next'], ['exact', 'Exact date'], ['exact_7', 'Exact date ±7 days'], ['exact_15', 'Exact date ±15 days']] as const;
 const PRIMARY_AMENITIES = [
   ['Elevator', 'Elevator'],
@@ -72,6 +72,10 @@ const COMPARE_AMENITIES = [
   ['Parking', ['Parking']],
   ['Pool', ['Pool', 'Indoor Pool', 'Outdoor Pool']],
 ] as const;
+
+function MultiSelectMenu({ label, options, selected, onToggle, alignRight = false }: { label: string; options: ReadonlyArray<readonly [string, string]>; selected: string[]; onToggle: (value: string, checked: boolean) => void; alignRight?: boolean }) {
+  return <details className="group relative min-w-0"><summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-md border border-input bg-background px-3 text-sm"><span className="truncate">{label}{selected.length > 0 ? ` (${selected.length})` : ''}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary><div className={`mt-1 max-h-64 min-w-56 overflow-y-auto rounded-lg border border-border bg-white p-2 shadow-xl sm:absolute sm:top-10 sm:z-50 ${alignRight ? 'sm:right-0' : 'sm:left-0'}`}>{options.map(([value, optionLabel]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={selected.includes(value)} onCheckedChange={(checked) => onToggle(value, checked === true)} />{optionLabel}</label>)}</div></details>;
+}
 
 function formatStartingRent(value: number | undefined, hasStreetEasyRentData: boolean) {
   return value == null ? (hasStreetEasyRentData ? 'Unavailable' : 'Unknown') : `From ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}`;
@@ -184,8 +188,8 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     ...boroughs.map((value) => ({ type: 'borough', value, label: value })),
     ...neighborhoods.map((value) => ({ type: 'neighborhood', value, label: value })),
     ...priceRanges.map((value) => ({ type: 'price', value, label: PRICE_RANGES.find(([key]) => key === value)?.[1] ?? value })),
-    ...bedrooms.map((value) => ({ type: 'bedrooms', value, label: value === '0' ? 'Studio' : `${value} Bedroom${value === '1' ? '' : 's'}` })),
-    ...bathrooms.map((value) => ({ type: 'bathrooms', value, label: `${value} Bathroom${value === '1' ? '' : 's'}` })),
+    ...bedrooms.map((value) => ({ type: 'bedrooms', value, label: BEDROOM_OPTIONS.find(([key]) => key === value)?.[1] ?? value })),
+    ...bathrooms.map((value) => ({ type: 'bathrooms', value, label: BATHROOM_OPTIONS.find(([key]) => key === value)?.[1] ?? value })),
     ...moveInFlex.map((value) => ({ type: 'moveIn', value, label: value.replaceAll('_', ' ') })),
     ...amenities.map((value) => ({ type: 'amenity', value, label: [...PRIMARY_AMENITIES, ...MORE_AMENITIES].find(([key]) => key === value)?.[1] ?? value })),
   ];
@@ -240,11 +244,11 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative">
           <summary className="flex h-10 cursor-pointer list-none items-center justify-start gap-1.5 rounded-md border border-input bg-background px-3 text-left text-sm font-normal leading-tight text-foreground"><SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" /><span>Filters</span>{activeFilterCount > 0 && <Badge variant="secondary" className="px-1">{activeFilterCount}</Badge>}<ChevronDown className="ml-auto h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary>
           <div className="mt-2 max-h-[70vh] w-full space-y-4 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-xl md:fixed md:left-1/2 md:right-auto md:top-auto md:z-40 md:mt-0 md:w-[min(92vw,820px)] md:-translate-x-1/2">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Price</legend><div className="grid grid-cols-2 gap-1">{PRICE_RANGES.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={priceRanges.includes(value)} onCheckedChange={(checked) => toggleValue(setPriceRanges, value, checked === true)} />{label}</label>)}</div></fieldset>
-            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Bedrooms</legend><div className="grid grid-cols-2 gap-1">{BEDROOM_OPTIONS.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={bedrooms.includes(value)} onCheckedChange={(checked) => toggleValue(setBedrooms, value, checked === true)} />{label}</label>)}</div></fieldset>
-            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Bathrooms</legend><div className="grid grid-cols-2 gap-1">{BATHROOM_OPTIONS.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={bathrooms.includes(value)} onCheckedChange={(checked) => toggleValue(setBathrooms, value, checked === true)} />{label}</label>)}</div></fieldset>
-            <fieldset><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Move-in</legend><div className="grid grid-cols-1 gap-1">{MOVE_IN_OPTIONS.map(([value, label]) => <label key={value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={moveInFlex.includes(value)} onCheckedChange={(checked) => toggleValue(setMoveInFlex, value, checked === true)} />{label}</label>)}</div></fieldset>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <MultiSelectMenu label="Price" options={PRICE_RANGES} selected={priceRanges} onToggle={(value, checked) => toggleValue(setPriceRanges, value, checked)} />
+            <MultiSelectMenu label="Bedrooms" options={BEDROOM_OPTIONS} selected={bedrooms} onToggle={(value, checked) => toggleValue(setBedrooms, value, checked)} />
+            <MultiSelectMenu label="Bathrooms" options={BATHROOM_OPTIONS} selected={bathrooms} onToggle={(value, checked) => toggleValue(setBathrooms, value, checked)} />
+            <MultiSelectMenu label="Move-in" options={MOVE_IN_OPTIONS} selected={moveInFlex} onToggle={(value, checked) => toggleValue(setMoveInFlex, value, checked)} alignRight />
           </div>
           {moveInFlex.some((value) => DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) && <div className="max-w-52"><label htmlFor="move-in-date" className="mb-1 block text-xs text-muted-foreground">Move-in date</label><Input id="move-in-date" type="date" value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} /></div>}
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Popular amenities</legend><div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">{QUICK_AMENITIES.map(([value, label]) => <button key={value} type="button" aria-pressed={amenities.includes(value)} onClick={() => toggleAmenity(value, !amenities.includes(value))} className={`min-h-11 rounded-md border px-3 text-left text-sm ${amenities.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-background hover:border-primary/50'}`}>{label}</button>)}</div></fieldset>
