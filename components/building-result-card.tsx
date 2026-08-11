@@ -43,17 +43,17 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const savedAndCompared = favorited && compared;
 
   return (
-    <article data-building-id={building.id} className={cn('group relative overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:border-primary/30 hover:shadow-md', compact ? 'w-[760px] max-w-full' : 'min-h-[300px] cursor-pointer hover:-translate-y-0.5', highlighted ? 'border-primary ring-2 ring-primary/20' : 'border-border')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
-      <div className="grid min-h-[300px] grid-cols-1 sm:grid-cols-[43%_57%]">
-        <div className="relative min-h-[260px] overflow-hidden bg-muted sm:min-h-full">
+    <article data-building-id={building.id} className={cn('group relative overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:border-primary/30 hover:shadow-md', compact ? 'w-full' : 'min-h-[300px] cursor-pointer hover:-translate-y-0.5', highlighted ? 'border-primary ring-2 ring-primary/20' : 'border-border')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
+      <div className={cn('grid min-h-[300px] grid-cols-1', !compact && 'sm:grid-cols-[43%_57%]')}>
+        {!compact && <div className="relative min-h-[260px] overflow-hidden bg-muted sm:min-h-full">
           {heroImage ? <Image src={heroImage} alt={`${building.name} interior`} fill unoptimized sizes="(min-width: 640px) 43vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full min-h-[260px] items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-14 w-14 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
           <button type="button" className="absolute right-4 top-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-foreground shadow-md" aria-label={favorited ? `Remove ${building.name} from favorites` : `Save ${building.name}`} aria-pressed={favorited} onClick={(event) => { event.stopPropagation(); onFavoriteChange?.(building, !favorited); }}><Heart className={cn('h-6 w-6', favorited && 'fill-destructive text-destructive')} /></button>
-        </div>
+        </div>}
 
         <div className="relative flex min-w-0 flex-col p-5 sm:p-6">
           <div className={cn('min-w-0', onClose ? 'pr-52' : 'pr-44')}>
             <p className="truncate text-sm font-bold uppercase tracking-[0.18em] text-primary">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
-            <h2 className="mt-1 truncate font-serif text-3xl font-bold leading-tight text-navy transition group-hover:text-primary">{building.name}</h2>
+            <h2 className={cn('mt-1 font-serif font-bold leading-tight text-navy transition group-hover:text-primary', compact ? 'break-words text-2xl' : 'truncate text-3xl')}>{building.name}</h2>
             <p className="mt-1 flex items-start gap-1.5 text-base leading-6 text-muted-foreground"><MapPin className="mt-0.5 h-5 w-5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
           </div>
 
@@ -61,11 +61,11 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           {onClose && <button type="button" className="absolute right-3 top-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-foreground shadow" aria-label={`Close ${building.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}><X className="h-5 w-5" /></button>}
 
           <div className="mt-6 grid grid-cols-4 border-y border-border/70 py-4" aria-label="Starting base rents by apartment type">
-            {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className={cn('min-w-0 px-2 text-center', index > 0 && 'border-l border-border')}><p className="whitespace-nowrap text-sm font-medium text-navy">{label}</p><p className="mt-1 truncate font-serif text-xl font-semibold text-navy">{minimum != null ? formatCurrency(minimum) : '—'}</p></div>; })}
+            {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className={cn('min-w-0 px-2 text-center', index > 0 && 'border-l border-border')}><p className="whitespace-nowrap text-sm font-medium text-navy">{label}</p><p className={cn('mt-1 whitespace-nowrap font-serif font-semibold text-navy', compact ? 'text-base' : 'text-xl')}>{minimum != null ? formatCurrency(minimum) : '—'}</p></div>; })}
           </div>
 
           <div className="grid grid-cols-4 py-4" aria-label="Building amenities">
-            {CORE_AMENITIES.map(({ label, values, Icon }, index) => { const confirmed = values.some((value) => amenities.has(value)); return <div key={label} className={cn('flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-center', index > 0 && 'border-l border-border', !confirmed && 'opacity-25')}><Icon className="h-7 w-7 text-navy" /><span className="truncate text-xs font-medium text-navy">{label}</span></div>; })}
+            {CORE_AMENITIES.map(({ label, values, Icon }, index) => { const confirmed = values.some((value) => amenities.has(value)); return <div key={label} className={cn('flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-center', index > 0 && 'border-l border-border', !confirmed && 'opacity-25')}><Icon className="h-7 w-7 text-navy" /><span className={cn('whitespace-nowrap font-medium text-navy', compact ? 'text-[11px]' : 'text-xs')}>{label}</span></div>; })}
           </div>
 
           <div className="mt-auto grid grid-cols-2 gap-3">
