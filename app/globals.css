@@ -105,11 +105,10 @@
 }
 
 .gm-style .gm-style-iw-c:has(.building-map-preview) {
-  border: 1px solid rgba(148, 163, 184, 0.46);
-  background: rgba(248, 250, 252, 0.48);
-  box-shadow: 0 4px 14px rgba(22, 50, 79, 0.18);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  border: 0;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(22, 50, 79, 0.24);
+  padding: 0;
 }
 
 .gm-style .gm-style-iw-c:has(.building-map-preview) .gm-style-iw-d {
@@ -118,7 +117,7 @@
 
 .gm-style .gm-style-iw-tc:has(+ .gm-style-iw-c .building-map-preview)::after,
 .gm-style .gm-style-iw-tc:has(~ .gm-style-iw-c .building-map-preview)::after {
-  background: rgba(248, 250, 252, 0.62);
+  background: #fff;
 }
 
 @layer base {
