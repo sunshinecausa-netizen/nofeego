@@ -76,6 +76,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   const areaPolygonsRef = useRef<google.maps.Polygon[]>([]);
   const areaBuildingIdsRef = useRef(new Set<string>());
   const drawingModeRef = useRef(false);
+  const pinnedPreviewIdRef = useRef<string | null>(null);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
   const [loadError, setLoadError] = useState(false);
@@ -145,6 +146,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     const scheduleClose = () => {
       cancelClose();
       closeTimer = window.setTimeout(() => {
+        if (pinnedPreviewIdRef.current) return;
         infoWindow.close();
         previewRoot?.unmount();
         previewRoot = null;
@@ -200,7 +202,8 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         previewRoot = createRoot(content);
         previewRoot.render(<div className="divide-y divide-border">{group.map((item) => <MapBuildingCard key={item.id} item={item} />)}</div>);
         infoWindow.setContent(content);
-        infoWindow.open(map, marker);
+        infoWindow.setPosition(position);
+        infoWindow.open({ map, shouldFocus: false });
       };
 
       const focusAndOpenPreview = () => {
@@ -218,6 +221,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
 
       marker.addListener('mouseover', () => {
         if (drawingModeRef.current) return;
+        if (pinnedPreviewIdRef.current && !group.some((item) => item.id === pinnedPreviewIdRef.current)) return;
         cancelPreview();
         previewTimer = window.setTimeout(() => {
           if (drawingModeRef.current) return;
@@ -233,6 +237,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       marker.addListener('click', () => {
         if (drawingModeRef.current) return;
         const focusedBuilding = group[0];
+        pinnedPreviewIdRef.current = focusedBuilding.id;
         onBuildingSelect?.(focusedBuilding.id);
         focusAndOpenPreview();
       });
