@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
-import { AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
-import { BuildingCard } from '@/components/building-result-card';
+import { AlertTriangle, MapPin, Pencil, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BuildingInventorySummary } from '@/lib/public-buildings';
 import type { Building } from '@/lib/types';
@@ -53,10 +52,9 @@ type BuildingMapProps = {
 
 type ScreenPoint = { x: number; y: number };
 
-function MapBuildingCard({ item, compared, favorited, onCompareChange, onFavoriteChange }: { item: BuildingMapItem; compared: boolean; favorited: boolean; onCompareChange?: (building: Building, checked: boolean) => void; onFavoriteChange?: (building: Building, checked: boolean) => void }) {
-  const [isCompared, setIsCompared] = useState(compared);
-  const [isFavorited, setIsFavorited] = useState(favorited);
-  return <BuildingCard building={item.building} inventory={item.inventory} compared={isCompared} favorited={isFavorited} variant="map" onCompareChange={(building, checked) => { setIsCompared(checked); onCompareChange?.(building, checked); }} onFavoriteChange={(building, checked) => { setIsFavorited(checked); onFavoriteChange?.(building, checked); }} />;
+function MapBuildingCard({ item }: { item: BuildingMapItem }) {
+  const address = [item.building.address, item.building.city, item.building.state, item.building.zip_code].filter(Boolean).join(', ');
+  return <div className="w-[300px] max-w-full bg-white px-3 py-2.5"><p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.neighborhood ?? item.building.borough ?? 'New York metro'}</p><h2 className="mt-1 truncate font-serif text-xl font-bold text-foreground">{item.name}</h2><p className="mt-1 flex items-start gap-1.5 text-sm leading-5 text-muted-foreground"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /><span>{address || item.address}</span></p></div>;
 }
 
 function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: number; lng: number }>) {
@@ -70,7 +68,7 @@ function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: nu
   return inside;
 }
 
-export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingHover, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
+export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, onBuildingSelect, onBuildingHover, onAreaSelect, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -78,8 +76,6 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
   const areaPolygonsRef = useRef<google.maps.Polygon[]>([]);
   const areaBuildingIdsRef = useRef(new Set<string>());
   const drawingModeRef = useRef(false);
-  const comparedBuildingIdsRef = useRef(new Set(comparedBuildingIds));
-  const favoriteBuildingIdsRef = useRef(new Set(favoriteBuildingIds));
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
   const [loadError, setLoadError] = useState(false);
@@ -124,8 +120,6 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     if (drawingMode) infoWindowRef.current?.close();
   }, [drawingMode]);
 
-  useEffect(() => { comparedBuildingIdsRef.current = new Set(comparedBuildingIds); }, [comparedBuildingIds]);
-  useEffect(() => { favoriteBuildingIdsRef.current = new Set(favoriteBuildingIds); }, [favoriteBuildingIds]);
 
   useEffect(() => {
     if (!scriptLoaded || !mapRef.current) return;
@@ -199,11 +193,11 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
         cancelClose();
         previewRoot?.unmount();
         const content = document.createElement('div');
-        content.style.cssText = 'width:min(340px,calc(100vw - 72px));max-height:min(520px,calc(100vh - 160px));overflow:auto;padding:2px;';
+        content.style.cssText = 'width:min(300px,calc(100vw - 72px));max-height:min(360px,calc(100vh - 160px));overflow:auto;padding:2px;';
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
         previewRoot = createRoot(content);
-        previewRoot.render(<div className="space-y-2">{group.map((item) => <MapBuildingCard key={item.id} item={item} compared={comparedBuildingIdsRef.current.has(item.id)} favorited={favoriteBuildingIdsRef.current.has(item.id)} onCompareChange={onCompareChange} onFavoriteChange={onFavoriteChange} />)}</div>);
+        previewRoot.render(<div className="divide-y divide-border">{group.map((item) => <MapBuildingCard key={item.id} item={item} />)}</div>);
         infoWindow.setContent(content);
         infoWindow.open(map, marker);
       };
@@ -283,7 +277,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
       markerClusterer.clearMarkers();
       markers.forEach((marker) => marker.setMap(null));
     };
-  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, onCompareChange, onFavoriteChange, validBuildings]);
+  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, validBuildings]);
 
   function pointFromEvent(event: React.PointerEvent<SVGSVGElement>): ScreenPoint {
     const bounds = event.currentTarget.getBoundingClientRect();
