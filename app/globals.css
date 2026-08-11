@@ -110,6 +110,15 @@ body::-webkit-scrollbar-thumb:hover {
   background-clip: padding-box;
 }
 
+html.results-custom-scrollbar {
+  scrollbar-width: none;
+}
+
+html.results-custom-scrollbar::-webkit-scrollbar,
+html.results-custom-scrollbar body::-webkit-scrollbar {
+  display: none;
+}
+
 .gm-style .gm-style-iw-c:has(.building-map-preview) {
   border: 1px solid rgba(148, 163, 184, 0.46);
   background: rgba(248, 250, 252, 0.48);
