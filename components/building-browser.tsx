@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,40 @@ import type { BuildingFilters, BuildingsPageResult } from '@/lib/public-building
 import { useTenantData } from '@/lib/account/tenant-data-context';
 
 const PAGE_SIZE = 24;
+const CUSTOM_SCROLL_THUMB_HEIGHT = 140;
+
+function ResultsPageScrollbar() {
+  const [metrics, setMetrics] = useState({ scrollTop: 0, scrollHeight: 0, viewportHeight: 0 });
+
+  useEffect(() => {
+    const update = () => setMetrics({ scrollTop: window.scrollY, scrollHeight: document.documentElement.scrollHeight, viewportHeight: window.innerHeight });
+    const updateMode = () => document.documentElement.classList.toggle('results-custom-scrollbar', window.matchMedia('(min-width: 768px)').matches);
+    const observer = new ResizeObserver(update);
+    observer.observe(document.body);
+    update();
+    updateMode();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    window.addEventListener('resize', updateMode);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('resize', updateMode);
+      document.documentElement.classList.remove('results-custom-scrollbar');
+    };
+  }, []);
+
+  const trackHeight = Math.max(0, metrics.viewportHeight - 64);
+  const thumbHeight = Math.min(CUSTOM_SCROLL_THUMB_HEIGHT, trackHeight);
+  const maxScroll = Math.max(0, metrics.scrollHeight - metrics.viewportHeight);
+  const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+  const thumbTop = maxScroll > 0 ? (metrics.scrollTop / maxScroll) * maxThumbTop : 0;
+  if (maxScroll <= 0) return null;
+
+  return <div className="fixed bottom-0 right-0 top-16 z-[80] hidden w-5 cursor-pointer bg-slate-200/70 md:block" aria-label="Results page scrollbar" onPointerDown={(event) => { if (event.target !== event.currentTarget) return; const rect = event.currentTarget.getBoundingClientRect(); const ratio = Math.max(0, Math.min(1, (event.clientY - rect.top - thumbHeight / 2) / maxThumbTop)); window.scrollTo({ top: ratio * maxScroll, behavior: 'auto' }); }}><button type="button" aria-label="Drag to scroll building results" className="absolute left-0.5 right-0.5 cursor-grab touch-none rounded-full bg-slate-600/85 shadow-sm hover:bg-slate-700 active:cursor-grabbing" style={{ height: thumbHeight, top: thumbTop }} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); const startY = event.clientY; const startScroll = window.scrollY; const move = (moveEvent: PointerEvent) => window.scrollTo({ top: startScroll + ((moveEvent.clientY - startY) / maxThumbTop) * maxScroll, behavior: 'auto' }); const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop); }} /></div>;
+}
+
 type NeighborhoodOption = readonly [value: string, label: string];
 const neighborhoodOptions = (items: ReadonlyArray<string>): NeighborhoodOption[] => items.map((item) => [item, item]);
 const BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'] as const;
@@ -306,6 +340,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
         </section>
       </div>
+      <ResultsPageScrollbar />
 
       {compareIds.length > 0 && <>
         {compareOpen && <div role="dialog" aria-modal="true" aria-labelledby="building-comparison-title" className="fixed bottom-20 left-3 right-3 top-16 z-40 flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl md:left-1/2 md:right-auto md:top-auto md:max-h-[72vh] md:w-[min(1200px,calc(100vw-2rem))] md:-translate-x-1/2">
