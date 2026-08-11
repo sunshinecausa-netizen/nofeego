@@ -171,7 +171,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     const areaBuildingIds = areaBuildingIdsRef.current;
     const designTokens = getComputedStyle(document.documentElement);
     const markerColor = designTokens.getPropertyValue('--map-marker').trim() || '#DC2626';
-    const markerClusterColor = designTokens.getPropertyValue('--map-marker-cluster').trim() || 'rgba(220, 38, 38, 0.28)';
+    const markerClusterColor = designTokens.getPropertyValue('--map-marker-cluster').trim() || 'rgba(232, 144, 36, 0.28)';
     const markerRingColor = designTokens.getPropertyValue('--map-marker-ring').trim() || '#ffffff';
     const markerLabelColor = designTokens.getPropertyValue('--map-marker-label').trim() || '#16324F';
     const markers = locationGroups.map((group) => {
