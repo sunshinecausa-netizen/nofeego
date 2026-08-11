@@ -110,6 +110,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const [mobileView, setMobileView] = useState<'list' | 'map'>('map');
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [selectionRequestKey, setSelectionRequestKey] = useState(0);
   const [compareOpen, setCompareOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [hoveredBorough, setHoveredBorough] = useState<string>(starting.boroughs[0] ?? 'Manhattan');
@@ -194,6 +195,12 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     setMobileView('map');
   }, [setSelectedBuildingId, setMobileView]);
 
+  const focusBuildingFromCard = useCallback((id: string) => {
+    setSelectedBuildingId(id);
+    setSelectionRequestKey((value) => value + 1);
+    setMobileView('map');
+  }, []);
+
   const selectAreaBuildings = useCallback((ids: string[]) => {
     void replaceCompare(ids);
     if (ids.length === 0) setCompareOpen(false);
@@ -248,7 +255,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       onCompareChange={toggleCompare}
       onFavoriteChange={toggleFavorite}
       onHover={setHoveredBuildingId}
-      onSelect={selectBuilding}
+      onSelect={focusBuildingFromCard}
     />
   ));
 
@@ -291,7 +298,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{resultCards}</div>
         </section>
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
-          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
+          <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
         </section>
       </div>
 

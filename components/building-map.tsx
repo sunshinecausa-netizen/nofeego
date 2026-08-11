@@ -40,6 +40,7 @@ type BuildingMapProps = {
   buildings: BuildingMapItem[];
   hoveredBuildingId?: string | null;
   selectedBuildingId?: string | null;
+  selectionRequestKey?: number;
   comparedBuildingIds?: string[];
   favoriteBuildingIds?: string[];
   onBuildingSelect?: (id: string) => void;
@@ -69,7 +70,7 @@ function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: nu
   return inside;
 }
 
-export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingHover, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
+export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingHover, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -337,7 +338,7 @@ export function BuildingMap({ buildings, hoveredBuildingId = null, selectedBuild
     if (!marker) return;
     const previewTimer = window.setTimeout(() => google.maps.event.trigger(marker, 'click'), 250);
     return () => window.clearTimeout(previewTimer);
-  }, [selectedBuildingId, validBuildings]);
+  }, [selectedBuildingId, selectionRequestKey, validBuildings]);
 
   useEffect(() => {
     const activeMarkers = new Set<google.maps.Marker>();
