@@ -105,9 +105,9 @@
 }
 
 .gm-style .gm-style-iw-c:has(.building-map-preview) {
-  border: 0;
+  border: 2px solid hsl(var(--primary));
   background: #fff;
-  box-shadow: 0 12px 32px rgba(22, 50, 79, 0.24);
+  box-shadow: 0 0 0 4px rgba(239, 145, 0, 0.2), 0 16px 40px rgba(22, 50, 79, 0.32);
   padding: 0;
 }
 
