@@ -79,6 +79,32 @@
   }
 }
 
+html {
+  scrollbar-color: rgba(71, 85, 105, 0.78) rgba(226, 232, 240, 0.58);
+  scrollbar-width: auto;
+}
+
+html::-webkit-scrollbar {
+  width: 16px;
+}
+
+html::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.58);
+}
+
+html::-webkit-scrollbar-thumb {
+  min-height: 72px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(71, 85, 105, 0.78);
+  background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: rgba(51, 65, 85, 0.92);
+  background-clip: padding-box;
+}
+
 .gm-style .gm-style-iw-c:has(.building-map-preview) {
   border: 1px solid rgba(148, 163, 184, 0.46);
   background: rgba(248, 250, 252, 0.48);
