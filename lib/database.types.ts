@@ -60,8 +60,10 @@ export interface Database {
       }>;
       roommate_preferences: Table<{
         user_id: string; max_monthly_budget: number; move_in_date: string; move_in_flexibility: string; lease_term: string;
-        roommates_wanted: number; eligibility_status: string; credit_range: string; smoking: string; pets: string;
-        schedule: string; work_from_home: string; cleanliness: string; created_at: string; updated_at: string;
+        roommates_wanted: number; eligibility_status: string; credit_range: string; utilities_budget: string; qualification_status: string;
+        guarantor_status: string; room_arrangement: string; smoking: string; pets: string; pet_allergies: string;
+        noise_preference: string; guest_frequency: string; overnight_guests: string; temperature_preference: string;
+        schedule: string; work_from_home: string; cleanliness: string; language: string | null; created_at: string; updated_at: string;
       }>;
       roommate_interests: Table<{
         id: string; user_id: string; building_id: string; unit_id: string | null; floor_plan: string;
@@ -73,7 +75,8 @@ export interface Database {
       }>;
       roommate_consents: Table<{
         id: string; user_id: string; interest_id: string | null; terms_version: string; privacy_accepted: boolean;
-        safety_accepted: boolean; disclaimer_accepted: boolean; accepted_at: string;
+        safety_accepted: boolean; disclaimer_accepted: boolean; age_confirmed: boolean; community_guidelines_accepted: boolean;
+        optional_matching_consent: boolean; accepted_at: string;
       }>;
       roommate_events: Table<{
         id: string; user_id: string; interest_id: string | null; event_type: string; metadata: Json; created_at: string;
