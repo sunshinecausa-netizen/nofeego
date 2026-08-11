@@ -79,52 +79,29 @@
   }
 }
 
-html,
-body {
+.results-list-scrollbar {
   scrollbar-color: rgba(71, 85, 105, 0.78) rgba(226, 232, 240, 0.58);
   scrollbar-width: auto;
 }
 
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  width: 16px;
+.results-list-scrollbar::-webkit-scrollbar {
+  width: 12px;
 }
 
-html::-webkit-scrollbar-track,
-body::-webkit-scrollbar-track {
+.results-list-scrollbar::-webkit-scrollbar-track {
   background: rgba(226, 232, 240, 0.58);
 }
 
-html::-webkit-scrollbar-thumb,
-body::-webkit-scrollbar-thumb {
-  min-height: 120px;
-  border: 3px solid transparent;
+.results-list-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
   border-radius: 999px;
   background: rgba(71, 85, 105, 0.78);
   background-clip: padding-box;
 }
 
-html::-webkit-scrollbar-thumb:hover,
-body::-webkit-scrollbar-thumb:hover {
+.results-list-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(51, 65, 85, 0.92);
   background-clip: padding-box;
-}
-
-html.results-custom-scrollbar {
-  scrollbar-width: none;
-}
-
-html.results-custom-scrollbar::-webkit-scrollbar,
-html.results-custom-scrollbar body::-webkit-scrollbar {
-  display: none;
-}
-
-.results-scrollbar-track,
-.results-scrollbar-thumb {
-  visibility: visible !important;
-  opacity: 1 !important;
-  animation: none !important;
-  transition: none !important;
 }
 
 .gm-style .gm-style-iw-c:has(.building-map-preview) {

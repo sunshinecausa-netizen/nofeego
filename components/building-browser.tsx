@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -15,39 +15,6 @@ import type { BuildingFilters, BuildingsPageResult } from '@/lib/public-building
 import { useTenantData } from '@/lib/account/tenant-data-context';
 
 const PAGE_SIZE = 24;
-const CUSTOM_SCROLL_THUMB_HEIGHT = 140;
-
-function ResultsPageScrollbar() {
-  const [metrics, setMetrics] = useState({ scrollTop: 0, scrollHeight: 0, viewportHeight: 0 });
-
-  useEffect(() => {
-    const update = () => setMetrics({ scrollTop: window.scrollY, scrollHeight: document.documentElement.scrollHeight, viewportHeight: window.innerHeight });
-    const updateMode = () => document.documentElement.classList.toggle('results-custom-scrollbar', window.matchMedia('(min-width: 768px)').matches);
-    const observer = new ResizeObserver(update);
-    observer.observe(document.body);
-    update();
-    updateMode();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    window.addEventListener('resize', updateMode);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-      window.removeEventListener('resize', updateMode);
-      document.documentElement.classList.remove('results-custom-scrollbar');
-    };
-  }, []);
-
-  const trackHeight = Math.max(0, metrics.viewportHeight - 64);
-  const thumbHeight = Math.min(CUSTOM_SCROLL_THUMB_HEIGHT, trackHeight);
-  const maxScroll = Math.max(0, metrics.scrollHeight - metrics.viewportHeight);
-  const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
-  const thumbTop = maxScroll > 0 ? (metrics.scrollTop / maxScroll) * maxThumbTop : 0;
-  if (maxScroll <= 0) return null;
-
-  return <div className="results-scrollbar-track fixed bottom-0 right-0 top-16 z-[80] hidden w-5 cursor-pointer border-l border-slate-300 bg-slate-200/90 opacity-100 md:block" aria-label="Results page scrollbar" onPointerDown={(event) => { if (event.target !== event.currentTarget) return; const rect = event.currentTarget.getBoundingClientRect(); const ratio = Math.max(0, Math.min(1, (event.clientY - rect.top - thumbHeight / 2) / maxThumbTop)); window.scrollTo({ top: ratio * maxScroll, behavior: 'auto' }); }}><button type="button" aria-label="Drag to scroll building results" className="results-scrollbar-thumb absolute left-0.5 right-0.5 visible cursor-grab touch-none rounded-full bg-slate-600 opacity-100 shadow-sm hover:bg-slate-700 active:cursor-grabbing" style={{ height: thumbHeight, top: thumbTop }} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); const startY = event.clientY; const startScroll = window.scrollY; const move = (moveEvent: PointerEvent) => window.scrollTo({ top: startScroll + ((moveEvent.clientY - startY) / maxThumbTop) * maxScroll, behavior: 'auto' }); const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop); }} /></div>;
-}
 
 type NeighborhoodOption = readonly [value: string, label: string];
 const neighborhoodOptions = (items: ReadonlyArray<string>): NeighborhoodOption[] => items.map((item) => [item, item]);
@@ -328,20 +295,18 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background md:min-h-[calc(100dvh-4rem)]">
+    <div className="flex min-h-screen flex-col bg-background md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden">
       <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view"><Button type="button" variant={mobileView === 'map' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('map')}><Map className="mr-2 h-4 w-4" />Map</Button><Button type="button" variant={mobileView === 'list' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('list')}><List className="mr-2 h-4 w-4" />List</Button></div>
-      <div className="min-h-0 flex-1 md:grid md:grid-cols-2 md:items-start min-[1100px]:grid-cols-[45fr_55fr]">
+      <div className="min-h-0 flex-1 md:grid md:grid-cols-2 min-[1100px]:grid-cols-[45fr_55fr]">
         <section className={`${mobileView === 'list' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-border bg-muted/25 md:flex`} aria-label="Building results list">
           <div className="shrink-0">{compactFilters}</div>
           <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2 sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>
-          <div className="min-h-0 flex-1"><div className="space-y-3 p-3 sm:p-4">{resultCards}</div><Footer embedded /></div>
+          <div className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="space-y-3 p-3 sm:p-4">{resultCards}</div><Footer embedded /></div>
         </section>
-        <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:sticky md:top-16 md:block md:h-[calc(100dvh-4rem)] md:min-h-0`} aria-label="Building map panel">
+        <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
           <BuildingMap buildings={mapItems} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
         </section>
       </div>
-      <ResultsPageScrollbar />
-
       {compareIds.length > 0 && <>
         {compareOpen && <div role="dialog" aria-modal="true" aria-labelledby="building-comparison-title" className="fixed bottom-20 left-3 right-3 top-16 z-40 flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl md:left-1/2 md:right-auto md:top-auto md:max-h-[72vh] md:w-[min(1200px,calc(100vw-2rem))] md:-translate-x-1/2">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3"><div><h2 id="building-comparison-title" className="font-serif text-xl font-bold">Building comparison</h2><p className="text-xs text-muted-foreground">Starting base rent, current availability, and verified amenities</p></div><Button type="button" size="icon" variant="ghost" aria-label="Close comparison" onClick={() => setCompareOpen(false)}><X className="h-4 w-4" /></Button></div>
