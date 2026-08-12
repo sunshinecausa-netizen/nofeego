@@ -104,7 +104,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const pinnedPreviewIdRef = useRef<string | null>(null);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const previewOptionsRef = useRef({ comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose });
-  previewOptionsRef.current = { comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose };
+  useEffect(() => { previewOptionsRef.current = { comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose }; }, [comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose]);
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
   const [loadError, setLoadError] = useState(false);
   const [drawingMode, setDrawingMode] = useState(false);

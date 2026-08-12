@@ -2,14 +2,15 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type PartnershipStatus = 'Not Contacted' | 'Contacted' | 'Negotiating' | 'Partner' | 'Inactive';
 export type DataConfidence = 'High' | 'Medium' | 'Low';
 
-type Table<Row, Insert = Partial<Row>, Update = Partial<Insert>> = {
-  Row: Row; Insert: Insert; Update: Update; Relationships: [];
+type Table<Row, Insert = Partial<Row>, Update = Partial<Insert>, Relationships extends readonly unknown[] = []> = {
+  Row: Row; Insert: Insert; Update: Update; Relationships: Relationships;
 };
+type RelatedTable<Row, Relationships extends readonly unknown[]> = Table<Row, Partial<Row>, Partial<Row>, Relationships>;
 
 export interface Database {
   public: {
     Tables: {
-      buildings: Table<{
+      buildings: RelatedTable<{
         id: string; building_id: string | null; slug: string; name: string; building_name: string | null;
         neighborhood_id: string | null; neighborhood: string | null; borough: string | null;
         address: string; street_address: string | null; city: string; state: string; zip_code: string | null;
@@ -27,19 +28,19 @@ export interface Database {
         seo_title: string | null; seo_description: string | null; faqs: Json | null; nearby_subway: string[] | null;
         nearby_grocery: string[] | null; nearby_restaurants: string[] | null; transportation: string[] | null;
         neighborhood_summary: string | null; contact_email: string | null; contact_phone: string | null;
-      }>;
+      }, [{ foreignKeyName:'buildings_neighborhood_id_fkey'; columns:['neighborhood_id']; isOneToOne:false; referencedRelation:'neighborhoods'; referencedColumns:['id'] }]>;
       profiles: Table<{
         id: string; display_name: string | null; email: string | null; is_admin: boolean;
         account_role: 'tenant' | 'admin'; created_at: string; updated_at: string;
       }>;
-      listings: Table<{
+      listings: RelatedTable<{
         id: string; slug: string; title: string; building_id: string | null; neighborhood_id: string | null;
         unit_number: string | null; price: number; bedrooms: number; bathrooms: number; sqft: number | null;
         furnished: boolean; pet_policy: string; move_in_date: string | null; lease_term_months: number | null;
         listing_type: string; status: string; description: string | null; images: string[] | null;
         amenities: string[] | null; latitude: number | null; longitude: number | null;
         seo_title: string | null; seo_description: string | null; created_at: string; updated_at: string;
-      }>;
+      }, [{ foreignKeyName:'listings_building_id_fkey'; columns:['building_id']; isOneToOne:false; referencedRelation:'buildings'; referencedColumns:['id'] }, { foreignKeyName:'listings_neighborhood_id_fkey'; columns:['neighborhood_id']; isOneToOne:false; referencedRelation:'neighborhoods'; referencedColumns:['id'] }]>;
       favorites: Table<{
         id: string; user_id: string; listing_id: string | null; building_id: string | null; unit_id: string | null;
         created_at: string;
@@ -57,6 +58,9 @@ export interface Database {
       roommate_profiles: Table<{
         user_id: string; bio: string | null; notification_method: 'email' | 'sms'; contact_email: string | null;
         contact_phone: string | null; contact_sharing_enabled: boolean; is_paused: boolean; created_at: string; updated_at: string;
+        display_name: string | null; smoking_status: string | null; pet_status: string | null; pet_allergies: string | null;
+        work_pattern: string | null; sleep_schedule: string | null; noise_preference: string | null; cleaning_habits: string | null;
+        guest_frequency: string | null; temperature_preference: string | null; identity_verification_willingness: string | null; profile_status: string;
       }>;
       roommate_preferences: Table<{
         user_id: string; max_monthly_budget: number; move_in_date: string; move_in_flexibility: string; lease_term: string;
@@ -68,6 +72,10 @@ export interface Database {
       roommate_interests: Table<{
         id: string; user_id: string; building_id: string; unit_id: string | null; floor_plan: string;
         status: 'active' | 'paused' | 'withdrawn' | 'home_unavailable'; created_at: string; updated_at: string;
+        roommate_profile_id: string | null; move_in_date: string | null; flexibility_days_before: number; flexibility_days_after: number;
+        lease_term: string | null; personal_monthly_budget: number | null; roommates_needed: number | null; qualification_status: string | null;
+        credit_category: string | null; guarantor_status: string | null; submitted_at: string | null; paused_at: string | null;
+        withdrawn_at: string | null; contacted_at: string | null; closed_at: string | null; linked_inquiry_id: string | null;
       }>;
       roommate_matches: Table<{
         id: string; first_interest_id: string; second_interest_id: string; score: number;
@@ -115,7 +123,6 @@ export interface Database {
         is_active: boolean; created_at: string; updated_at: string;
       }>;
       transit: Table<{ id: string; building_id: string; station_name: string; subway_lines: string[]; walking_minutes: number | null; created_at: string; updated_at: string }>;
-      [key: string]: Table<Record<string, unknown>>;
     };
     Views: {
       public_buildings: { Row: Partial<Database['public']['Tables']['buildings']['Row']> & { id: string; slug: string; name: string; address: string; city: string; state: string; is_active: boolean; updated_at: string }; Insert: never; Update: never; Relationships: [] };
@@ -123,7 +130,10 @@ export interface Database {
       public_building_rent_summary: { Row: { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }; Insert: never; Update: never; Relationships: [] };
       public_roommate_interest_counts: { Row: { building_id: string; interested_count: number }; Insert: never; Update: never; Relationships: [] };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      submit_roommate_interest_mvp: { Args: { payload: Json }; Returns: Json };
+      create_roommate_rental_lead: { Args: { target_interest_id: string }; Returns: string };
+    };
     Enums: { partnership_status: PartnershipStatus; data_confidence: DataConfidence };
     CompositeTypes: Record<string, never>;
   };

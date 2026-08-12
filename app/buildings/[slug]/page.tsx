@@ -198,6 +198,7 @@ export default function BuildingDetailPage() {
                 <Button variant="outline" className="w-full mb-4" size="lg">
                   Contact Agent
                 </Button>
+                <Button asChild variant="outline" className="h-auto w-full py-3" size="lg"><Link href={`/roommate-request?${new URLSearchParams({buildingId:building.id,buildingSlug:building.slug,buildingName:building.name,address:building.address,floorPlan:'Any available floor plan'}).toString()}`}><span><span className="block font-semibold">Find a roommate</span><span className="block text-xs font-normal">Share this home</span></span></Link></Button>
               </div>
 
               {/* Map */}

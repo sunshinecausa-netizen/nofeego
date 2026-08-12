@@ -126,6 +126,7 @@ export default function AdminPage() {
         <QuickLink href="/admin/users" icon={Users} title="Manage Users" description={`${stats.totalUsers} total`} />
         <QuickLink href="/admin/settings" icon={Settings} title="Settings" description="Platform configuration" />
         <QuickLink href="/admin/pending" icon={FileClock} title="Pending Submissions" description={`${pendingSubmissions.length} awaiting review`} />
+        <QuickLink href="/admin/roommate-interests" icon={Users} title="Roommate Interests" description="Review and follow up" />
       </div>
 
       {/* Pending submissions */}
