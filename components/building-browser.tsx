@@ -314,7 +314,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <section className={`${mobileView === 'list' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-border bg-muted/25 md:flex`} aria-label="Building results list">
           <div className="shrink-0">{compactFilters}</div>
           <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2 sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>
-          <div className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="space-y-3 p-3 sm:p-4">{resultCards}</div><Footer embedded /></div>
+          <div className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{resultCards}</div><Footer embedded /></div>
         </section>
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
           <BuildingMap buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingClose={() => setSelectedBuildingId(null)} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
