@@ -65,8 +65,8 @@ function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLa
     ? available.filter(({ bedroom }) => selected.includes(bedroom))
     : available.length > 0 ? [available.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest)] : [];
   return visible.map(({ bedroom, price }) => {
-    const roundedPrice = Math.ceil(price / 50) * 50;
-    return { bedroom, text: selected.length > 1 ? `${BEDROOM_LABELS[bedroom]} $${roundedPrice.toLocaleString('en-US')}` : `$${roundedPrice.toLocaleString('en-US')}` };
+    const displayedPrice = price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    return { bedroom, text: selected.length > 1 ? `${BEDROOM_LABELS[bedroom]} $${displayedPrice}+` : `$${displayedPrice}+` };
   });
 }
 
