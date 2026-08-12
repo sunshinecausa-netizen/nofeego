@@ -58,7 +58,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
     ].filter((value): value is string => value != null).slice(0, 3);
 
     return (
-      <article data-building-id={building.id} className={cn('group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:shadow-md lg:h-[480px]', highlighted && 'ring-2 ring-primary/40 shadow-[0_12px_30px_rgba(22,50,79,0.22)]')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
+      <article data-building-id={building.id} className={cn('group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:shadow-md lg:h-[480px]', highlighted && 'ring-2 ring-primary/40 shadow-[0_12px_30px_rgba(22,50,79,0.22)]')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a, [data-copyable]')) return; onSelect?.(building.id); }}>
         <div className="relative aspect-[1.55/1] shrink-0 overflow-hidden bg-muted lg:aspect-auto lg:h-[66%]">
           {heroImage ? <Image src={heroImage} alt={`${building.name} exterior`} fill unoptimized sizes="(min-width: 1024px) 25vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-14 w-14 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
           <p className="absolute bottom-4 left-4 max-w-[calc(100%-2rem)] truncate rounded-md bg-primary px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-primary-foreground shadow-sm">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
@@ -67,8 +67,8 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
 
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3.5">
           <div className="grid gap-1.5">
-            <h2 className="truncate font-sans text-xl font-bold leading-6 text-navy transition group-hover:text-primary">{building.name}</h2>
-            <p className="truncate text-sm leading-5 text-muted-foreground">{fullAddress}</p>
+            <h2 data-copyable className="cursor-text select-text truncate font-sans text-xl font-bold leading-6 text-navy transition group-hover:text-primary">{building.name}</h2>
+            <p data-copyable className="cursor-text select-text truncate text-sm leading-5 text-muted-foreground">{fullAddress}</p>
             <p className="truncate text-sm font-bold leading-5 text-navy">{priceSummary.length > 0 ? priceSummary.join('  ·  ') : 'Current pricing unavailable'}</p>
             <p className="truncate text-sm leading-5 text-muted-foreground">{amenitySummary.length > 0 ? amenitySummary.join('  ·  ') : 'Amenities unavailable'}</p>
           </div>
@@ -82,7 +82,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   }
 
   return (
-    <article data-building-id={building.id} className={cn('group relative overflow-hidden bg-white transition duration-200', compact ? 'w-full rounded-none border-0 shadow-none' : 'min-h-[300px] cursor-pointer rounded-2xl border shadow-sm focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', !compact && (highlighted ? 'border-2 border-primary shadow-[0_0_0_4px_rgba(239,145,0,0.2),0_16px_40px_rgba(22,50,79,0.32)] hover:border-primary hover:shadow-[0_0_0_4px_rgba(239,145,0,0.2),0_16px_40px_rgba(22,50,79,0.32)]' : 'border-border'))} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
+    <article data-building-id={building.id} className={cn('group relative overflow-hidden bg-white transition duration-200', compact ? 'w-full rounded-none border-0 shadow-none' : 'min-h-[300px] cursor-pointer rounded-2xl border shadow-sm focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', !compact && (highlighted ? 'border-2 border-primary shadow-[0_0_0_4px_rgba(239,145,0,0.2),0_16px_40px_rgba(22,50,79,0.32)] hover:border-primary hover:shadow-[0_0_0_4px_rgba(239,145,0,0.2),0_16px_40px_rgba(22,50,79,0.32)]' : 'border-border'))} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a, [data-copyable]')) return; onSelect?.(building.id); }}>
       <div className="grid min-h-[300px] grid-cols-1">
         {!compact && <div className="relative min-h-[260px] overflow-hidden bg-muted sm:min-h-[340px]">
           {heroImage ? <Image src={heroImage} alt={`${building.name} exterior`} fill unoptimized sizes="(min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full min-h-[260px] items-center justify-center bg-gradient-to-br from-muted to-secondary/70 sm:min-h-[340px]"><Building2 className="h-14 w-14 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
@@ -93,8 +93,8 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
         <div className="relative flex min-w-0 flex-col p-5 sm:p-6">
           <div className={cn('min-w-0', compact && (onClose ? 'pr-52' : 'pr-44'))}>
             {compact && <p className="truncate text-sm font-bold uppercase tracking-[0.18em] text-primary">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>}
-            <h2 className={cn('mt-1 break-words font-serif font-bold leading-tight text-navy transition group-hover:text-primary', compact ? 'text-2xl' : 'text-3xl')}>{building.name}</h2>
-            <p className="mt-1 flex items-start gap-1.5 text-base leading-6 text-muted-foreground"><MapPin className="mt-0.5 h-5 w-5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
+            <h2 data-copyable className={cn('mt-1 cursor-text select-text break-words font-serif font-bold leading-tight text-navy transition group-hover:text-primary', compact ? 'text-2xl' : 'text-3xl')}>{building.name}</h2>
+            <p data-copyable className="mt-1 flex cursor-text select-text items-start gap-1.5 text-base leading-6 text-muted-foreground"><MapPin className="mt-0.5 h-5 w-5 shrink-0" /><span className="line-clamp-2">{fullAddress}</span></p>
           </div>
 
           {compact && <button type="button" className={cn('absolute top-5 z-20 inline-flex h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-navy transition hover:bg-muted', onClose ? 'right-16' : 'right-4')} aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-6 w-6', savedAndCompared && 'fill-destructive text-destructive')} /><span className={cn(onClose && 'hidden min-[760px]:inline')}>Save and Compare</span></button>}
