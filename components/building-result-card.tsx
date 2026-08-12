@@ -42,6 +42,44 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const requestContext = new URLSearchParams({ buildingId: building.id, buildingSlug: building.slug, buildingName: building.name, neighborhood: building.neighborhood ?? building.borough ?? '', address: fullAddress }).toString();
   const savedAndCompared = favorited && compared;
 
+  if (!compact) {
+    const priceSummary = BEDROOM_PRICE_LABELS
+      .map(([bedroom, label]) => {
+        const minimum = inventory?.bedroomMinimums[bedroom];
+        return minimum == null ? null : `${label} $${formatCurrency(minimum)}`;
+      })
+      .filter((value): value is string => value != null);
+    const amenitySummary = [
+      amenities.has('Doorman') ? 'Doorman' : null,
+      amenities.has('Gym') ? 'Gym' : null,
+      amenities.has('In-Unit W/D Available') ? 'In-Unit Laundry' : null,
+      amenities.has('Laundry In Building') ? 'Laundry' : null,
+      ['Pets Allowed', 'Small Dogs Allowed', 'Large Dogs Allowed', 'Cats Allowed'].some((value) => amenities.has(value)) ? 'Pets' : null,
+    ].filter((value): value is string => value != null).slice(0, 3);
+
+    return (
+      <article data-building-id={building.id} className={cn('group relative cursor-pointer overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', highlighted ? 'border-2 border-primary shadow-[0_0_0_4px_rgba(239,145,0,0.2),0_16px_40px_rgba(22,50,79,0.32)]' : 'border-border')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
+        <div className="relative aspect-[1.34/1] overflow-hidden bg-muted">
+          {heroImage ? <Image src={heroImage} alt={`${building.name} exterior`} fill unoptimized sizes="(min-width: 1024px) 25vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-14 w-14 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
+          <p className="absolute bottom-4 left-4 max-w-[calc(100%-2rem)] truncate rounded-md bg-primary px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-primary-foreground shadow-sm">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
+          <button type="button" className="absolute right-4 top-4 z-20 inline-flex min-h-11 items-center gap-2 rounded-full bg-white/95 px-3 text-xs font-semibold text-navy shadow-md backdrop-blur transition hover:bg-white" aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-5 w-5 shrink-0', savedAndCompared && 'fill-destructive text-destructive')} /><span>Save and Compare</span></button>
+        </div>
+
+        <div className="px-5 py-5">
+          <h2 className="break-words font-serif text-2xl font-bold leading-tight text-navy transition group-hover:text-primary">{building.name}</h2>
+          <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">{fullAddress}</p>
+          <p className="mt-4 text-sm font-bold leading-6 text-navy">{priceSummary.length > 0 ? priceSummary.join('  ·  ') : 'Current pricing unavailable'}</p>
+          {amenitySummary.length > 0 && <p className="mt-2 text-sm leading-6 text-muted-foreground">{amenitySummary.join('  ·  ')}</p>}
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-border px-5 py-4">
+          <Button asChild variant="link" className="h-auto justify-start p-0 text-left text-base font-medium text-navy underline underline-offset-4"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>Find a Roommate</Link></Button>
+          <Button asChild variant="outline" className="h-11 border-primary px-5 text-sm font-semibold text-primary hover:bg-primary/5 hover:text-primary"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>View Units</Link></Button>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article data-building-id={building.id} className={cn('group relative overflow-hidden bg-white transition duration-200', compact ? 'w-full rounded-none border-0 shadow-none' : 'min-h-[300px] cursor-pointer rounded-2xl border shadow-sm focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', !compact && (highlighted ? 'border-2 border-primary shadow-[0_0_0_4px_rgba(239,145,0,0.2),0_16px_40px_rgba(22,50,79,0.32)] hover:border-primary hover:shadow-[0_0_0_4px_rgba(239,145,0,0.2),0_16px_40px_rgba(22,50,79,0.32)]' : 'border-border'))} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
       <div className="grid min-h-[300px] grid-cols-1">
