@@ -11,7 +11,9 @@
     "typecheck:importer": "tsc --noEmit -p tsconfig.importer.json",
     "import:buildings": "tsx scripts/import-buildings.ts",
     "extract:building": "tsx scripts/street-easy-import/cli.ts",
-    "test:extractor": "tsx --test scripts/street-easy-import/*.test.ts"
+    "test:extractor": "tsx --test scripts/street-easy-import/*.test.ts",
+    "test:roommate": "tsx --test lib/roommate/*.test.ts",
+    "verify:roommate-rls": "tsx scripts/verify-roommate-rls.ts"
   },
   "dependencies": {
     "@googlemaps/markerclusterer": "2.5.3",
