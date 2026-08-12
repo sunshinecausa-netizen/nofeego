@@ -58,21 +58,23 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
     ].filter((value): value is string => value != null).slice(0, 3);
 
     return (
-      <article data-building-id={building.id} className={cn('group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:shadow-md', highlighted && 'ring-2 ring-primary/40 shadow-[0_12px_30px_rgba(22,50,79,0.22)]')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
-        <div className="relative aspect-[1.62/1] overflow-hidden bg-muted">
+      <article data-building-id={building.id} className={cn('group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:shadow-md lg:h-[480px]', highlighted && 'ring-2 ring-primary/40 shadow-[0_12px_30px_rgba(22,50,79,0.22)]')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
+        <div className="relative aspect-[1.55/1] shrink-0 overflow-hidden bg-muted lg:aspect-auto lg:h-[66%]">
           {heroImage ? <Image src={heroImage} alt={`${building.name} exterior`} fill unoptimized sizes="(min-width: 1024px) 25vw, 100vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-secondary/70"><Building2 className="h-14 w-14 text-muted-foreground/35" /><span className="sr-only">No building photo available</span></div>}
           <p className="absolute bottom-4 left-4 max-w-[calc(100%-2rem)] truncate rounded-md bg-primary px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-primary-foreground shadow-sm">{building.neighborhood ?? building.borough ?? 'New York metro'}</p>
           <button type="button" className="absolute right-4 top-4 z-20 inline-flex min-h-11 items-center gap-2 rounded-full bg-white/95 px-3 text-xs font-semibold text-navy shadow-md backdrop-blur transition hover:bg-white" aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-5 w-5 shrink-0', savedAndCompared && 'fill-destructive text-destructive')} /><span>Save and Compare</span></button>
         </div>
 
-        <div className="space-y-2 px-4 py-4">
-          <h2 className="break-words font-sans text-xl font-bold leading-6 text-navy transition group-hover:text-primary">{building.name}</h2>
-          <p className="line-clamp-1 text-sm leading-5 text-muted-foreground">{fullAddress}</p>
-          <p className="text-sm font-bold leading-5 text-navy">{priceSummary.length > 0 ? priceSummary.join('  ·  ') : 'Current pricing unavailable'}</p>
-          {amenitySummary.length > 0 && <p className="text-sm leading-5 text-muted-foreground">{amenitySummary.join('  ·  ')}</p>}
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2 pt-1">
-            <Button asChild variant="outline" className="h-auto min-h-16 justify-start whitespace-normal border-primary bg-primary/[0.03] px-3 py-2 text-left text-navy hover:bg-primary/[0.07] hover:text-navy"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-2 h-7 w-7 shrink-0" /><span className="leading-4"><span className="block text-sm font-bold">Find a roommate</span><span className="mt-0.5 block text-[11px] font-medium">Join others interested in sharing this home.</span></span></Link></Button>
-            <Button asChild className="h-auto min-h-16 bg-primary px-4 text-sm font-semibold hover:bg-primary/90"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>View Units</Link></Button>
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-3.5">
+          <div className="grid gap-1.5">
+            <h2 className="truncate font-sans text-xl font-bold leading-6 text-navy transition group-hover:text-primary">{building.name}</h2>
+            <p className="truncate text-sm leading-5 text-muted-foreground">{fullAddress}</p>
+            <p className="truncate text-sm font-bold leading-5 text-navy">{priceSummary.length > 0 ? priceSummary.join('  ·  ') : 'Current pricing unavailable'}</p>
+            <p className="truncate text-sm leading-5 text-muted-foreground">{amenitySummary.length > 0 ? amenitySummary.join('  ·  ') : 'Amenities unavailable'}</p>
+          </div>
+          <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border pt-2.5">
+            <Button asChild variant="ghost" className="h-9 justify-start px-0 text-sm font-semibold text-navy hover:bg-transparent hover:text-primary"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>Find a Roommate</Link></Button>
+            <Button asChild className="h-9 bg-primary px-4 text-sm font-semibold hover:bg-primary/90"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>View Units</Link></Button>
           </div>
         </div>
       </article>
