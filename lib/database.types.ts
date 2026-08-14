@@ -127,6 +127,7 @@ export interface Database {
     Views: {
       public_buildings: { Row: Partial<Database['public']['Tables']['buildings']['Row']> & { id: string; slug: string; name: string; address: string; city: string; state: string; is_active: boolean; updated_at: string }; Insert: never; Update: never; Relationships: [] };
       public_building_availability: { Row: { building_slug: string; availability_status: 'unavailable' | 'limited' | 'available' }; Insert: never; Update: never; Relationships: [] };
+      public_building_unit_counts: { Row: { building_slug: string; available_unit_count: number }; Insert: never; Update: never; Relationships: [] };
       public_building_rent_summary: { Row: { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }; Insert: never; Update: never; Relationships: [] };
       public_roommate_interest_counts: { Row: { building_id: string; interested_count: number }; Insert: never; Update: never; Relationships: [] };
     };
