@@ -95,7 +95,7 @@ function SubwayWalkingSummary({ building }: { building: Building }) {
     const marker = markerRef.current;
     if (!marker || building.latitude == null || building.longitude == null) return;
     let active = true;
-    const load = () => { void walkingRouteToNearestSubway(building).then((route) => { if (active && route) setSummary(`${route.label} · ${route.minutes} min walk · ${route.distance}`); }); };
+    const load = () => { void walkingRouteToNearestSubway(building).then((route) => { if (active) setSummary(route ? `${route.label} · ${route.minutes} min walk · ${route.distance}` : 'Nearest subway walking route unavailable'); }); };
     const observer = new IntersectionObserver((entries) => { if (entries.some((entry) => entry.isIntersecting)) { observer.disconnect(); load(); } }, { rootMargin: '240px' });
     observer.observe(marker);
     return () => { active = false; observer.disconnect(); };
