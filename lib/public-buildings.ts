@@ -5,7 +5,7 @@ export type BuildingInventorySummary = {
   availabilityStatus: PublicAvailabilityStatus;
   bedroomMinimums: Partial<Record<0 | 1 | 2 | 3, number>>;
   roommateInterestCount?: number;
-  availableCount?: never; concessionText?: never; updatedAt?: never;
+  availableCount?: number; concessionText?: never; updatedAt?: never;
 };
 export type BuildingsPageResult = { buildings: Building[]; total: number; inventoryByBuilding: Record<string, BuildingInventorySummary> };
 export type BuildingFilters = { search?: string; boroughs?: string[]; neighborhoods?: string[]; amenities?: string[]; priceRanges?: string[]; bedrooms?: string[]; bathrooms?: string[]; moveInDate?: string; moveInFlex?: string[]; mapOnly?: boolean };
@@ -41,14 +41,14 @@ export async function fetchPublicBuildingBySlug(slug: string): Promise<Building 
 
 export async function fetchPublicBuildingInventoryBySlug(slug: string): Promise<BuildingInventorySummary> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return { availabilityStatus: 'unavailable', bedroomMinimums: {} };
+  if (!url || !anonKey) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, availableCount: 0 };
   const endpoint = new URL('/rest/v1/public_building_rent_summary', url); endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('building_slug', `eq.${slug}`); endpoint.searchParams.set('limit', '1');
   const response = await fetch(endpoint, { cache: 'no-store', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
-  if (!response.ok) return { availabilityStatus: 'unavailable', bedroomMinimums: {} };
+  if (!response.ok) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, availableCount: 0 };
   const [row] = await response.json() as Array<{ studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }>;
-  if (!row) return { availabilityStatus: 'unavailable', bedroomMinimums: {} };
+  if (!row) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, availableCount: 0 };
   const bedroomMinimums = Object.fromEntries([[0, row.studio_min_rent], [1, row.one_bed_min_rent], [2, row.two_bed_min_rent], [3, row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number'));
-  return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums };
+  return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums, availableCount: 0 };
 }
 
 export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [], priceRanges = [], bedrooms = [] }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
@@ -71,13 +71,16 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const candidateBuildings = (await response.json() as Record<string, unknown>[]).map(publicBuilding);
   const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*');
   const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*');
+  const unitCounts = new URL('/rest/v1/public_building_unit_counts', url); unitCounts.searchParams.set('select', '*');
   const roommateCounts = new URL('/rest/v1/public_roommate_interest_counts', url); roommateCounts.searchParams.set('select', '*');
-  const [availabilityResponse, rentResponse, roommateResponse] = await Promise.all([fetch(availability, { cache: 'no-store', headers }), fetch(rentSummary, { cache: 'no-store', headers }), fetch(roommateCounts, { cache: 'no-store', headers })]);
+  const [availabilityResponse, rentResponse, unitCountResponse, roommateResponse] = await Promise.all([fetch(availability, { cache: 'no-store', headers }), fetch(rentSummary, { cache: 'no-store', headers }), fetch(unitCounts, { cache: 'no-store', headers }), fetch(roommateCounts, { cache: 'no-store', headers })]);
   const bySlug = new Map<string, PublicAvailabilityStatus>();
   if (availabilityResponse.ok) for (const row of await availabilityResponse.json() as Array<{ building_slug: string; availability_status: PublicAvailabilityStatus }>) bySlug.set(row.building_slug, row.availability_status);
   type RentRow = { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null };
   const rents = new Map<string, Partial<Record<0 | 1 | 2 | 3, number>>>();
   if (rentResponse.ok) for (const row of await rentResponse.json() as RentRow[]) rents.set(row.building_slug, Object.fromEntries([[0,row.studio_min_rent],[1,row.one_bed_min_rent],[2,row.two_bed_min_rent],[3,row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number')));
+  const availableCounts = new Map<string, number>();
+  if (unitCountResponse.ok) for (const row of await unitCountResponse.json() as Array<{ building_slug: string; available_unit_count: number }>) availableCounts.set(row.building_slug, row.available_unit_count);
   const interestCounts = new Map<string, number>();
   if (roommateResponse.ok) for (const row of await roommateResponse.json() as Array<{ building_id: string; interested_count: number }>) interestCounts.set(row.building_id, row.interested_count);
   const selectedBedrooms = bedrooms.filter((value) => ['0', '1', '2', '3', '4'].includes(value)).map(Number);
@@ -91,7 +94,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     return true;
   });
   const buildings = hasRentFilters ? rentFilteredBuildings.slice((Math.max(1, page) - 1) * pageSize, Math.max(1, page) * pageSize) : candidateBuildings;
-  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, roommateInterestCount: interestCounts.get(b.id) }]));
+  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, availableCount: availableCounts.get(b.slug) ?? 0, roommateInterestCount: interestCounts.get(b.id) }]));
   const total = hasRentFilters ? rentFilteredBuildings.length : Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   return { buildings, total, inventoryByBuilding };
 }

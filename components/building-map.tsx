@@ -55,19 +55,18 @@ type BuildingMapProps = {
 
 type ScreenPoint = { x: number; y: number };
 
-type PriceLabel = { bedroom: 0 | 1 | 2 | 3; text: string };
-const BEDROOM_LABELS: Record<PriceLabel['bedroom'], string> = { 0: 'Studio', 1: '1 Bed', 2: '2 Bed', 3: '3 Bed' };
+type PriceLabel = { key: string; text: string };
 
 function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLabel[] {
-  const selected = [...new Set(selectedBedrooms.map(Number).filter((bedroom): bedroom is PriceLabel['bedroom'] => bedroom >= 0 && bedroom <= 3))];
-  const available = ([0, 1, 2, 3] as const).map((bedroom) => ({ bedroom, price: item.bedroomMinimums?.[bedroom] })).filter((entry): entry is { bedroom: PriceLabel['bedroom']; price: number } => typeof entry.price === 'number');
+  const selected = [...new Set(selectedBedrooms.map(Number).filter((bedroom): bedroom is 0 | 1 | 2 | 3 => bedroom >= 0 && bedroom <= 3))];
+  const available = ([0, 1, 2, 3] as const).map((bedroom) => ({ bedroom, price: item.bedroomMinimums?.[bedroom] })).filter((entry): entry is { bedroom: 0 | 1 | 2 | 3; price: number } => typeof entry.price === 'number');
   const visible = selected.length > 0
     ? available.filter(({ bedroom }) => selected.includes(bedroom))
     : available.length > 0 ? [available.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest)] : [];
-  return visible.map(({ bedroom, price }) => {
-    const displayedPrice = price.toLocaleString('en-US', { maximumFractionDigits: 0 });
-    return { bedroom, text: selected.length > 1 ? `${BEDROOM_LABELS[bedroom]} $${displayedPrice}+` : `$${displayedPrice}+` };
-  });
+  if (visible.length === 0) return [];
+  const minimum = visible.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest).price;
+  const count = item.availableCount ?? 0;
+  return [{ key: 'availability', text: `${count} available ${count === 1 ? 'unit' : 'units'}` }, { key: 'price', text: `$${minimum.toLocaleString('en-US', { maximumFractionDigits: 0 })}+` }];
 }
 
 function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) {
@@ -453,7 +452,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
           const y = ((40.93 - building.latitude!) / 0.35) * 100;
           if (x < 0 || x > 100 || y < 0 || y > 100) return null;
           const labels = priceLabels(building, selectedBedrooms);
-          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={`${building.name}: ${labels.map((label) => label.text).join(', ')}`} className="group absolute -translate-x-1/2 -translate-y-full space-y-0.5" style={{ left: `${x}%`, top: `${y}%` }}>{labels.map((label) => <span key={label.bedroom} className="block whitespace-nowrap rounded-full bg-[var(--map-marker)] px-2.5 py-1 text-sm font-bold leading-none text-white shadow-sm transition-transform group-hover:scale-105">{label.text}</span>)}</a>;
+          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={`${building.name}: ${labels.map((label) => label.text).join(', ')}`} className="group absolute -translate-x-1/2 -translate-y-full space-y-0.5" style={{ left: `${x}%`, top: `${y}%` }}>{labels.map((label) => <span key={label.key} className="block whitespace-nowrap rounded-full bg-[var(--map-marker)] px-2.5 py-1 text-sm font-bold leading-none text-white shadow-sm transition-transform group-hover:scale-105">{label.text}</span>)}</a>;
         })}
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-white/95 px-3 py-2 text-sm shadow-sm"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" /><span>Interactive map unavailable. Building locations remain selectable in this fallback view.</span></div>
         </div>
