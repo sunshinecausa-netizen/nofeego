@@ -66,7 +66,7 @@ function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLa
   if (visible.length === 0) return [];
   const minimum = visible.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest).price;
   const count = item.availableCount ?? 0;
-  return [{ key: 'availability', text: `${count} available ${count === 1 ? 'unit' : 'units'}` }, { key: 'price', text: `$${minimum.toLocaleString('en-US', { maximumFractionDigits: 0 })}+` }];
+  return [{ key: 'price-and-availability', text: `${Math.round(minimum)}+ ${count}units` }];
 }
 
 function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) {
