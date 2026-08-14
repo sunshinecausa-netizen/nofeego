@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  MapPin, Calendar, Building as BuildingIcon, ArrowLeft, Maximize, Train,
-  ShoppingBag, Utensils, Check, Heart, GitCompareArrows,
+  MapPin, Calendar, Building as BuildingIcon, Maximize, Train,
+  ShoppingBag, Utensils, Check, Heart, GitCompareArrows, ExternalLink, GraduationCap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,20 +15,39 @@ import { FaqSection } from '@/components/faq-section';
 import type { Building } from '@/lib/types';
 import { fetchBuildingBySlug } from '@/lib/services';
 import { useTenantData } from '@/lib/account/tenant-data-context';
+import { fetchPublicBuildingInventoryBySlug, type BuildingInventorySummary } from '@/lib/public-buildings';
+
+const UNIVERSITIES = [
+  { name: 'New York University', latitude: 40.7295, longitude: -73.9965 },
+  { name: 'Columbia University', latitude: 40.8075, longitude: -73.9626 },
+  { name: 'Fordham University at Lincoln Center', latitude: 40.7714, longitude: -73.9852 },
+  { name: 'Pace University', latitude: 40.7111, longitude: -74.0049 },
+  { name: 'Pratt Institute', latitude: 40.6913, longitude: -73.9630 },
+  { name: 'Stevens Institute of Technology', latitude: 40.7448, longitude: -74.0257 },
+] as const;
+
+function distanceMiles(latitude: number, longitude: number, targetLatitude: number, targetLongitude: number) {
+  const radians = (value: number) => value * Math.PI / 180;
+  const latitudeDelta = radians(targetLatitude - latitude); const longitudeDelta = radians(targetLongitude - longitude);
+  const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(radians(latitude)) * Math.cos(radians(targetLatitude)) * Math.sin(longitudeDelta / 2) ** 2;
+  return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export default function BuildingDetailPage() {
   const { favoriteIds, compareIds, toggleFavorite, toggleCompare } = useTenantData();
   const params = useParams();
   const slug = params.slug as string;
   const [building, setBuilding] = useState<Building | null>(null);
+  const [inventory, setInventory] = useState<BuildingInventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!slug) return;
     (async () => {
       try {
-        const b = await fetchBuildingBySlug(slug);
+        const [b, summary] = await Promise.all([fetchBuildingBySlug(slug), fetchPublicBuildingInventoryBySlug(slug)]);
         setBuilding(b as Building);
+        setInventory(summary);
       } catch (err) {
         console.error(err);
       } finally {
@@ -65,38 +84,31 @@ export default function BuildingDetailPage() {
   const mapListings = [{ id: building.id, slug: building.slug, title: building.name, price: 0, latitude: building.latitude, longitude: building.longitude }];
   const isFavorite = favoriteIds.includes(building.id);
   const isCompared = compareIds.includes(building.id);
+  const streetViewUrl = building.latitude != null && building.longitude != null ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${building.latitude},${building.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${building.address}, ${building.city}, ${building.state} ${building.zip_code ?? ''}`)}`;
+  const nearestUniversity = building.latitude != null && building.longitude != null ? UNIVERSITIES.map((university) => ({ ...university, miles: distanceMiles(building.latitude!, building.longitude!, university.latitude, university.longitude) })).sort((a, b) => a.miles - b.miles)[0] : null;
+  const rentLabels = [['Studio', inventory?.bedroomMinimums[0]], ['1 Bed', inventory?.bedroomMinimums[1]], ['2 Beds', inventory?.bedroomMinimums[2]], ['3 Beds', inventory?.bedroomMinimums[3]]] as const;
 
   return (
     <div>
-      {/* Hero image */}
-      <div className="relative h-[300px] sm:h-[400px] bg-muted overflow-hidden">
-        <img
-          src={building.hero_image ?? 'https://images.pexels.com/photos/2016156/pexels-photo-2016156.jpeg'}
-          alt={building.name}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
-          <div className="mx-auto max-w-7xl">
-            <Breadcrumbs
-              items={[
-                { label: 'Home', href: '/' },
-                { label: 'Buildings', href: '/buildings' },
-                { label: building.name },
-              ]}
-            />
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-white mt-3 mb-2">
-              {building.name}
-            </h1>
-            <div className="flex items-center gap-2 text-white/90 text-sm">
-              <MapPin className="h-4 w-4" />
-              <span>{building.address}, {building.city}, {building.state} {building.zip_code}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Buildings', href: '/buildings' }, { label: building.name }]} />
+        <h1 className="mt-4 font-sans text-3xl font-bold text-navy sm:text-4xl">{building.name}</h1>
+        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{building.address}, {building.city}, {building.state} {building.zip_code}</p>
+
+        <section className="my-7 overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:grid lg:grid-cols-[1.55fr_1fr]" aria-label="Building snapshot, live Street View, and location details">
+          <div className="grid border-b border-border lg:border-b-0 lg:border-r">
+            <div className="relative min-h-64 overflow-hidden bg-muted sm:min-h-80">
+              <img src={building.hero_image_url ?? building.hero_image ?? 'https://images.pexels.com/photos/2016156/pexels-photo-2016156.jpeg'} alt={`${building.name} illustrated building snapshot`} className="h-full w-full object-cover" />
+              <span className="absolute bottom-4 left-4 rounded-md bg-navy/90 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white">Building Snapshot · Illustration</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 bg-muted/25 px-5 py-4"><div><p className="font-semibold text-navy">Google Live Street View</p><p className="text-xs text-muted-foreground">Real, interactive street-level imagery opens in Google Maps.</p></div><Button asChild variant="outline" className="shrink-0 border-primary text-primary hover:bg-primary/5 hover:text-primary"><a href={streetViewUrl} target="_blank" rel="noreferrer">Open Live Street View<ExternalLink className="ml-2 h-4 w-4" /></a></Button></div>
+          </div>
+          <aside className="space-y-6 p-5 sm:p-6">
+            <div><h2 className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Starting rents</h2><div className="mt-3 grid grid-cols-2 gap-2">{rentLabels.map(([label, rent]) => <div key={label} className="rounded-lg bg-muted/35 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-bold text-navy">{rent != null ? `$${Math.ceil(rent / 50) * 50}+` : 'Unavailable'}</p></div>)}</div></div>
+            <div className="border-t border-border pt-5"><h2 className="flex items-center gap-2 text-sm font-bold text-navy"><Train className="h-4 w-4 text-primary" />Subway access</h2><p className="mt-2 text-sm text-muted-foreground">{building.nearby_subway?.[0] ?? 'Walking time available in Google Maps'}</p></div>
+            <div className="border-t border-border pt-5"><h2 className="flex items-center gap-2 text-sm font-bold text-navy"><GraduationCap className="h-4 w-4 text-primary" />Nearby university</h2><p className="mt-2 text-sm text-muted-foreground">{nearestUniversity ? `${nearestUniversity.name} · approximately ${nearestUniversity.miles.toFixed(1)} mi straight-line distance` : 'Distance available after location verification'}</p></div>
+          </aside>
+        </section>
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2">
