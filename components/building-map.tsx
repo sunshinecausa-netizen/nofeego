@@ -103,6 +103,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const drawingModeRef = useRef(false);
   const pinnedPreviewIdRef = useRef<string | null>(null);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
+  const streetViewVisibilityListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const previewOptionsRef = useRef({ comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose });
   useEffect(() => { previewOptionsRef.current = { comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose }; }, [comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose]);
   const [scriptLoaded, setScriptLoaded] = useState(() => typeof window !== 'undefined' && Boolean(window.google?.maps));
@@ -164,12 +165,6 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       clickableIcons: true,
       gestureHandling: 'greedy',
       scrollwheel: true,
-    });
-    const panorama = map.getStreetView();
-    panorama.setOptions({ addressControl: true, enableCloseButton: true, fullscreenControl: true });
-    const streetViewVisibilityListener = panorama.addListener('visible_changed', () => {
-      setStreetViewActive(panorama.getVisible());
-      if (!panorama.getVisible()) setStreetViewError(null);
     });
     const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 720 });
     infoWindowRef.current = infoWindow;
@@ -306,7 +301,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       cancelClose();
       cancelPreview();
       projectionOverlay.setMap(null);
-      streetViewVisibilityListener.remove();
+      streetViewVisibilityListenerRef.current?.remove();
+      streetViewVisibilityListenerRef.current = null;
       projectionOverlayRef.current = null;
       areaPolygonsRef.current.forEach((polygon) => polygon.setMap(null));
       areaPolygonsRef.current = [];
@@ -326,7 +322,15 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   async function toggleStreetView() {
     const map = googleMapRef.current;
     if (!map) return;
+    // The panorama is requested only after this explicit user action.
     const panorama = map.getStreetView();
+    if (!streetViewVisibilityListenerRef.current) {
+      panorama.setOptions({ addressControl: true, enableCloseButton: true, fullscreenControl: true });
+      streetViewVisibilityListenerRef.current = panorama.addListener('visible_changed', () => {
+        setStreetViewActive(panorama.getVisible());
+        if (!panorama.getVisible()) setStreetViewError(null);
+      });
+    }
     if (panorama.getVisible()) {
       panorama.setVisible(false);
       return;

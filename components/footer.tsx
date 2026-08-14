@@ -31,6 +31,8 @@ const FOOTER_LINKS = [
       { label: 'Sign In', href: '/sign-in' },
       { label: 'Sign Up', href: '/sign-up' },
       { label: 'Admin', href: '/admin' },
+      { label: 'Terms', href: '/terms' },
+      { label: 'Privacy Policy', href: '/privacy' },
     ],
   },
 ];
@@ -79,9 +81,7 @@ export function Footer({ embedded = false }: { embedded?: boolean }) {
           <p className="text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} ManhattanLiving. All rights reserved.
           </p>
-          <p className="text-xs text-muted-foreground">
-            Photos from Pexels. Not affiliated with any real estate brokerage.
-          </p>
+          <p className="text-xs text-muted-foreground">Building photos from Pexels. Street-level imagery © Google; Google Maps terms apply.</p>
         </div>
       </div>
     </footer>
