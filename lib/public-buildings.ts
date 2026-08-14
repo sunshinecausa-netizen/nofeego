@@ -39,6 +39,18 @@ export async function fetchPublicBuildingBySlug(slug: string): Promise<Building 
   if (!response.ok) throw new Error('Unable to load building.'); const rows = await response.json() as Record<string, unknown>[]; return rows[0] ? publicBuilding(rows[0]) : null;
 }
 
+export async function fetchPublicBuildingInventoryBySlug(slug: string): Promise<BuildingInventorySummary> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return { availabilityStatus: 'unavailable', bedroomMinimums: {} };
+  const endpoint = new URL('/rest/v1/public_building_rent_summary', url); endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('building_slug', `eq.${slug}`); endpoint.searchParams.set('limit', '1');
+  const response = await fetch(endpoint, { cache: 'no-store', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
+  if (!response.ok) return { availabilityStatus: 'unavailable', bedroomMinimums: {} };
+  const [row] = await response.json() as Array<{ studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }>;
+  if (!row) return { availabilityStatus: 'unavailable', bedroomMinimums: {} };
+  const bedroomMinimums = Object.fromEntries([[0, row.studio_min_rent], [1, row.one_bed_min_rent], [2, row.two_bed_min_rent], [3, row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number'));
+  return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums };
+}
+
 export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [], priceRanges = [], bedrooms = [] }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) throw new Error('Public building data is not configured.');
