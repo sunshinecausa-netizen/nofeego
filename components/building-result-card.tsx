@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { Dumbbell, GraduationCap, Heart, Home, MapPin, PawPrint, Shield, Train, Users, WashingMachine, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { StreetViewStaticPreview } from '@/components/street-view-static-preview';
+import { ensureGoogleMaps, StreetViewStaticPreview } from '@/components/street-view-static-preview';
 import type { BuildingInventorySummary } from '@/lib/public-buildings';
 import type { Building } from '@/lib/types';
 
@@ -20,11 +21,9 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.ceil(value / 50) * 50);
 }
 
-const UNIVERSITIES = [
-  ['New York University', 40.7295, -73.9965], ['Columbia University', 40.8075, -73.9626],
-  ['Fordham University at Lincoln Center', 40.7714, -73.9852], ['Pace University', 40.7111, -74.0049],
-  ['Pratt Institute', 40.6913, -73.963], ['Stevens Institute of Technology', 40.7448, -74.0257],
-] as const;
+const NEW_YORK_UNIVERSITY = ['New York University', 40.7295, -73.9965] as const;
+const COLUMBIA_UNIVERSITY = ['Columbia University', 40.8075, -73.9626] as const;
+const UPPER_MANHATTAN_NEIGHBORHOODS = /upper west side|morningside heights|manhattan valley|harlem|hamilton heights|sugar hill|washington heights|hudson heights|fort george|inwood/i;
 
 function publicStreetName(address: string) {
   return address.replace(/^\s*\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?\s+/, '').replace(/(?:,|\s)+(?:Apt|Apartment|Unit|Suite|Bldg|Building|Floor|#)\s*.*$/i, '').trim() || 'Street name unavailable';
@@ -37,15 +36,71 @@ function distanceMiles(latitude: number, longitude: number, targetLatitude: numb
   return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function nearestUniversity(building: Building) {
+function destinationUniversity(building: Building) {
   if (building.latitude == null || building.longitude == null) return null;
-  return UNIVERSITIES.map(([name, latitude, longitude]) => ({ name, miles: distanceMiles(building.latitude!, building.longitude!, latitude, longitude) })).sort((a, b) => a.miles - b.miles)[0];
+  const isManhattan = building.borough === 'Manhattan' || building.city === 'New York';
+  const isUpperManhattan = isManhattan && (UPPER_MANHATTAN_NEIGHBORHOODS.test(building.neighborhood ?? '') || building.latitude >= 40.785);
+  const [name, latitude, longitude] = isUpperManhattan ? COLUMBIA_UNIVERSITY : NEW_YORK_UNIVERSITY;
+  return { name, miles: distanceMiles(building.latitude, building.longitude, latitude, longitude) };
 }
 
-function subwaySummary(building: Building) {
-  const raw = building.nearby_subway?.[0];
-  if (!raw) return 'Nearest subway information unavailable';
-  return /\b\d+\s*(?:min|minute)/i.test(raw) ? raw : `${raw} · Walking time to be confirmed`;
+type SubwayRoute = { label: string; minutes: number; distance: string };
+type SubwayCandidate = { label: string; destination: string | google.maps.LatLngLiteral };
+const subwayRouteCache = new Map<string, Promise<SubwayRoute | null>>();
+
+function nearbySubwayCandidates(building: Building): Promise<SubwayCandidate[]> {
+  if (building.nearby_subway?.length) return Promise.resolve(building.nearby_subway.slice(0, 4).map((label) => ({ label, destination: `${label}, subway station, ${building.city}, ${building.state}` })));
+  return new Promise((resolve) => {
+    const service = new google.maps.places.PlacesService(document.createElement('div'));
+    service.nearbySearch({ location: { lat: building.latitude!, lng: building.longitude! }, rankBy: google.maps.places.RankBy.DISTANCE, type: 'subway_station' }, (results, status) => {
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !results) { resolve([]); return; }
+      resolve(results.slice(0, 4).flatMap((place) => place.name && place.geometry?.location ? [{ label: place.name, destination: place.geometry.location.toJSON() }] : []));
+    });
+  });
+}
+
+function walkingRouteToNearestSubway(building: Building) {
+  const existing = subwayRouteCache.get(building.id);
+  if (existing) return existing;
+  const request = (async () => {
+    if (building.latitude == null || building.longitude == null) return null;
+    await ensureGoogleMaps();
+    const service = new google.maps.DirectionsService();
+    const candidates = await nearbySubwayCandidates(building);
+    const routes = await Promise.all(candidates.map(async ({ label, destination }) => {
+      try {
+        const response = await service.route({
+          origin: { lat: building.latitude!, lng: building.longitude! },
+          destination,
+          travelMode: google.maps.TravelMode.WALKING,
+          provideRouteAlternatives: false,
+        });
+        const leg = response.routes[0]?.legs[0];
+        if (!leg?.duration?.value || !leg.distance?.text) return null;
+        return { label, seconds: leg.duration.value, minutes: Math.max(1, Math.round(leg.duration.value / 60)), distance: leg.distance.text };
+      } catch { return null; }
+    }));
+    const nearest = routes.filter((route): route is NonNullable<typeof route> => route != null).sort((a, b) => a.seconds - b.seconds)[0];
+    return nearest ? { label: nearest.label, minutes: nearest.minutes, distance: nearest.distance } : null;
+  })();
+  subwayRouteCache.set(building.id, request);
+  return request;
+}
+
+function SubwayWalkingSummary({ building }: { building: Building }) {
+  const markerRef = useRef<HTMLSpanElement>(null);
+  const fallback = building.nearby_subway?.[0] ?? 'Calculating nearest subway walk…';
+  const [summary, setSummary] = useState(fallback);
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (!marker || building.latitude == null || building.longitude == null) return;
+    let active = true;
+    const load = () => { void walkingRouteToNearestSubway(building).then((route) => { if (active) setSummary(route ? `${route.label} · ${route.minutes} min walk · ${route.distance}` : 'Nearest subway walking route unavailable'); }); };
+    const observer = new IntersectionObserver((entries) => { if (entries.some((entry) => entry.isIntersecting)) { observer.disconnect(); load(); } }, { rootMargin: '240px' });
+    observer.observe(marker);
+    return () => { active = false; observer.disconnect(); };
+  }, [building]);
+  return <span ref={markerRef}>{summary}</span>;
 }
 
 type Props = {
@@ -67,7 +122,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const amenities = new Set(building.amenities ?? []);
   const fullAddress = [building.address, building.city, building.state, building.zip_code].filter(Boolean).join(', ');
   const displayStreet = publicStreetName(building.address);
-  const university = nearestUniversity(building);
+  const university = destinationUniversity(building);
   const compact = variant === 'map';
   const requestContext = new URLSearchParams({ buildingId: building.id, buildingSlug: building.slug, buildingName: building.name, neighborhood: building.neighborhood ?? building.borough ?? '', address: fullAddress }).toString();
   const savedAndCompared = favorited && compared;
@@ -100,8 +155,8 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
             <h2 data-copyable className="cursor-text select-text truncate font-sans text-xl font-bold leading-6 text-navy transition group-hover:text-primary">{displayStreet}</h2>
             <p className="truncate text-sm font-bold leading-5 text-navy">{priceSummary.length > 0 ? priceSummary.join('  ·  ') : 'Current pricing unavailable'}</p>
             <p className="truncate text-sm leading-5 text-muted-foreground">{amenitySummary.length > 0 ? amenitySummary.join('  ·  ') : 'Amenities unavailable'}</p>
-            <p className="flex min-w-0 items-center gap-1.5 truncate text-xs leading-4 text-muted-foreground"><Train className="h-3.5 w-3.5 shrink-0 text-navy" /><span className="truncate">{subwaySummary(building)}</span></p>
-            <p className="flex min-w-0 items-center gap-1.5 truncate text-xs leading-4 text-muted-foreground"><GraduationCap className="h-3.5 w-3.5 shrink-0 text-navy" /><span className="truncate">{university ? `${university.name} · ${university.miles.toFixed(1)} mi straight-line` : 'Nearby school distance unavailable'}</span></p>
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-xs leading-4 text-muted-foreground"><Train className="h-3.5 w-3.5 shrink-0 text-navy" /><span className="truncate"><SubwayWalkingSummary building={building} /></span></p>
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-xs leading-4 text-muted-foreground"><GraduationCap className="h-3.5 w-3.5 shrink-0 text-navy" /><span className="truncate">{university ? `${university.name} · ${university.miles.toFixed(1)} mi` : 'Nearby school distance unavailable'}</span></p>
           </div>
           <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border pt-2.5">
             <Button asChild variant="ghost" className="h-9 justify-start px-0 text-sm font-semibold text-navy hover:bg-transparent hover:text-primary"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>Find a Roommate</Link></Button>
@@ -135,8 +190,8 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           </div>
 
           <div className="grid gap-2 border-b border-border/70 py-3 text-sm text-muted-foreground sm:grid-cols-2">
-            <p className="flex min-w-0 items-start gap-2"><Train className="mt-0.5 h-4 w-4 shrink-0 text-navy" /><span>{subwaySummary(building)}</span></p>
-            <p className="flex min-w-0 items-start gap-2"><GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-navy" /><span>{university ? `${university.name} · ${university.miles.toFixed(1)} mi straight-line` : 'Nearby school distance unavailable'}</span></p>
+            <p className="flex min-w-0 items-start gap-2"><Train className="mt-0.5 h-4 w-4 shrink-0 text-navy" /><SubwayWalkingSummary building={building} /></p>
+            <p className="flex min-w-0 items-start gap-2"><GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-navy" /><span>{university ? `${university.name} · ${university.miles.toFixed(1)} mi` : 'Nearby school distance unavailable'}</span></p>
           </div>
 
           <div className="grid grid-cols-4 py-4" aria-label="Building amenities">
