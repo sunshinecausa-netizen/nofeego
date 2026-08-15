@@ -1,0 +1,26 @@
+.container { min-width:240px; }
+.shell { --ai-orange:#e89024; --ai-red:#ff3b30; --ai-gold:#ffc85a; --ai-navy:#16324f; display:flex; width:100%; height:48px; align-items:center; overflow:hidden; border:1px solid #e8e1d7; border-radius:.75rem; background:#fffefa; transition:border-color 180ms ease,box-shadow 180ms ease; }
+.shell:focus-within { border-color:color-mix(in srgb,var(--ai-orange) 75%,white); box-shadow:0 0 0 3px rgb(232 144 36/.14),0 5px 18px rgb(255 59 48/.08); }
+.shell[data-error] { border-color:var(--ai-red); }
+.identity { position:relative; z-index:2; display:flex; height:100%; flex:none; align-items:center; gap:.5rem; padding-left:.7rem; color:var(--ai-navy); }
+.core { position:relative; display:grid; width:38px; height:38px; place-items:center; isolation:isolate; }
+.core::before { position:absolute; inset:-6px; z-index:-1; border-radius:45% 55% 52% 48%; background:radial-gradient(circle,rgb(255 200 90/.3) 0%,rgb(232 144 36/.14) 42%,transparent 72%); content:''; filter:blur(3px); animation:aiCoreBreath 4.4s ease-in-out infinite; }
+.house { width:23px; height:23px; color:var(--ai-orange); filter:drop-shadow(0 0 5px rgb(232 144 36/.36)); }
+.sparkle { position:absolute; right:1px; top:1px; width:13px; height:13px; color:var(--ai-red); transform-origin:45% 55%; animation:aiSparkleDrift 5s linear infinite; }
+.particleOne,.particleTwo { position:absolute; width:3px; height:3px; border-radius:999px; background:var(--ai-gold); box-shadow:0 0 5px var(--ai-orange); animation:aiParticleFloat 4.6s ease-in-out infinite; }
+.particleOne { left:3px; top:9px; } .particleTwo { right:6px; bottom:5px; animation-delay:-2.1s; }
+.aiLabel { white-space:nowrap; font-size:.875rem; font-weight:600; color:#172027; }
+.inputArea { position:relative; min-width:0; height:100%; flex:1; overflow:hidden; }
+.energyField { position:absolute; inset:0; opacity:.2; pointer-events:none; background:radial-gradient(circle at 8% 52%,rgb(255 59 48/.3) 0 2px,transparent 3px),repeating-radial-gradient(circle at 18% 50%,transparent 0 13px,rgb(255 200 90/.16) 14px 15px,transparent 16px 23px),linear-gradient(112deg,transparent 4%,rgb(255 200 90/.22) 18%,transparent 31%),radial-gradient(ellipse at 22% 52%,rgb(232 144 36/.3),rgb(255 244 227/.07) 45%,transparent 72%); mask-image:linear-gradient(to right,transparent 0,transparent calc(var(--typed-width) + 22px),rgb(0 0 0/.25) calc(var(--typed-width) + 34px),#000 calc(var(--typed-width) + 68px),transparent 82%); transition:opacity 180ms ease; animation:aiEnergyFlow 5s ease-in-out infinite alternate; }
+.shell:focus-within .energyField { opacity:.26; }
+.input { position:relative; z-index:1; width:100%; height:100%; appearance:none; border:0; outline:0; background:transparent; padding:0 .85rem; color:var(--ai-navy); font-size:.875rem; font-weight:500; letter-spacing:normal; }
+.input::placeholder { color:#69737b; opacity:1; } .input::-webkit-search-cancel-button { cursor:pointer; }
+.measure { position:absolute; left:.85rem; top:0; visibility:hidden; white-space:pre; font-size:.875rem; font-weight:500; letter-spacing:normal; }
+.errorText { margin:.25rem 0 0 .25rem; color:#9f251d; font-size:.75rem; }
+.shell[data-loading] .core::before { animation-duration:1.8s; } .shell[data-loading] .sparkle { animation-duration:2.4s; }
+@keyframes aiCoreBreath { 0%,100%{opacity:.55;transform:scale(.94)} 50%{opacity:1;transform:scale(1.08)} }
+@keyframes aiSparkleDrift { to{transform:rotate(360deg)} }
+@keyframes aiParticleFloat { 0%,100%{opacity:.35;transform:translate3d(0,2px,0)} 50%{opacity:.9;transform:translate3d(2px,-3px,0)} }
+@keyframes aiEnergyFlow { from{transform:translateX(-1.5%)} to{transform:translateX(2%)} }
+@media(max-width:520px){ .identity{padding-left:.5rem}.aiLabel{display:none}.input{padding-left:.5rem}.measure{left:.5rem} }
+@media(prefers-reduced-motion:reduce){ .core::before,.sparkle,.particleOne,.particleTwo,.energyField{animation:none} }

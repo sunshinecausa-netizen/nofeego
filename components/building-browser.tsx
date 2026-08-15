@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, Bot, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,6 +14,7 @@ import type { Building } from '@/lib/types';
 import type { BuildingFilters, BuildingsPageResult } from '@/lib/public-buildings';
 import { useTenantData } from '@/lib/account/tenant-data-context';
 import { useLocale } from '@/components/locale-provider';
+import { AISearchInput } from '@/components/ai-search-input';
 
 const PAGE_SIZE = 24;
 
@@ -121,6 +122,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const [compareOpen, setCompareOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [hoveredBorough, setHoveredBorough] = useState<string>(starting.boroughs[0] ?? 'Manhattan');
+  const [searchSubmitting, setSearchSubmitting] = useState(false);
   const error = initialError;
   const route = mode === 'search' ? '/search' : '/';
   const pageCount = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
@@ -144,6 +146,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSearchSubmitting(true);
     window.location.assign(href(1, { search: query, boroughs, neighborhoods, amenities, priceRanges, bedrooms, bathrooms, moveInDate, moveInFlex }));
   }
 
@@ -241,7 +244,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       <div className={`${mobileFiltersOpen ? 'fixed inset-x-0 bottom-0 top-12 z-[70] overflow-y-auto rounded-t-2xl border bg-white p-4 shadow-2xl' : 'hidden'} md:static md:block md:overflow-visible md:border-0 md:p-0 md:shadow-none`}>
       <div className="mb-4 flex items-center justify-between md:hidden"><h2 className="font-serif text-xl font-bold">Filters</h2><Button type="button" size="icon" variant="ghost" aria-label="Close filters" onClick={() => setMobileFiltersOpen(false)}><X className="h-5 w-5" /></Button></div>
       <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[240px] flex-[2_1_320px]"><label htmlFor="building-search" className="mb-1 flex items-center gap-1.5 text-xs font-bold text-red-600" data-no-translate data-no-localize><span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 ring-1 ring-inset ring-red-200"><Bot className="h-3.5 w-3.5" /><Sparkles className="h-3 w-3" />{locale === 'zh-Hans' ? 'AI找房' : 'AI Housing Search'}</span></label><Input id="building-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={locale === 'zh-Hans' ? '输入楼盘、地址、社区或你的找房需求' : 'Enter a building, address, neighborhood, or what you are looking for'} /></div>
+        <div className="min-w-[280px] flex-[2_1_420px]"><AISearchInput id="building-search" value={query} onChange={(event) => setQuery(event.target.value)} label={locale === 'zh-Hans' ? 'AI找房' : 'AI Search'} placeholder={locale === 'zh-Hans' ? '输入楼盘、地址、社区或你的找房需求' : 'Enter a building, address, neighborhood, or what you are looking for'} loading={searchSubmitting} /></div>
         <div className="flex min-w-0 flex-[4_1_620px] flex-wrap gap-2">
           <MultiSelectMenu label="Price" options={PRICE_RANGES} selected={priceRanges} onToggle={(value, checked) => toggleValue(setPriceRanges, value, checked)} />
           <MultiSelectMenu label="Bedrooms" options={BEDROOM_OPTIONS} selected={bedrooms} onToggle={(value, checked) => toggleValue(setBedrooms, value, checked)} />
@@ -261,7 +264,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">More amenities</legend><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">{FILTER_AMENITIES.map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
           </div>
         </details>
-        <Button type="submit" size="icon" className="h-10 w-10 shrink-0" aria-label="Search" title="Search"><Search className="h-4 w-4" /></Button>
+        <button type="submit" className="sr-only">Search</button>
         </div>
       </div>
       <div className="sticky bottom-0 mt-4 grid grid-cols-2 gap-3 border-t bg-white py-3 md:hidden"><Button type="button" variant="outline" onClick={clearDraftFilters}>Clear All</Button><Button type="submit">Apply</Button></div>
