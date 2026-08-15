@@ -68,13 +68,12 @@ export async function fetchPublicBuildingInventoryBySlug(slug: string): Promise<
   return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums, bedroomAvailableCounts: {} };
 }
 
-export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [], priceRanges = [], bedrooms = [] }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
+export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [], priceRanges = [], bedrooms = [], mapOnly = false }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) throw new Error('Public building data is not configured.');
   const endpoint = new URL('/rest/v1/public_buildings', url);
   endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('state', 'in.(NY,NJ)'); endpoint.searchParams.set('order', 'name.asc');
   const hasRentFilters = priceRanges.length > 0 || bedrooms.length > 0;
-  endpoint.searchParams.set('offset', hasRentFilters ? '0' : String((Math.max(1, page) - 1) * pageSize)); endpoint.searchParams.set('limit', hasRentFilters ? '500' : String(Math.min(500, Math.max(1, pageSize))));
   const term = search.trim().replace(/[,%()]/g, ' ').replace(/\s+/g, ' ').slice(0, 100);
   if (term) endpoint.searchParams.set('or', `(name.ilike.*${term}*,address.ilike.*${term}*,neighborhood.ilike.*${term}*,borough.ilike.*${term}*)`);
   const safeBoroughs = [...new Set(boroughs.filter((x) => ALLOWED_BOROUGHS.has(x)))];
@@ -84,8 +83,20 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const safeAmenities = [...new Set(amenities.filter((x) => ALLOWED_AMENITIES.has(x)))];
   if (safeAmenities.length) endpoint.searchParams.set('and', `(${safeAmenities.map((x) => `amenities.cs.{"${x}"}`).join(',')})`);
   const headers = { apikey: anonKey, Authorization: `Bearer ${anonKey}`, Prefer: 'count=exact' };
-  const response = await fetch(endpoint, { cache: 'no-store', headers }); if (!response.ok) throw new Error('Unable to load buildings.');
-  const candidateBuildings = (await response.json() as Record<string, unknown>[]).map(publicBuilding);
+  let candidateRows: Record<string, unknown>[];
+  let unfilteredTotal = 0;
+  if (mapOnly || hasRentFilters) {
+    candidateRows = await fetchAllPublicViewRows<Record<string, unknown>>(endpoint, headers);
+    unfilteredTotal = candidateRows.length;
+  } else {
+    endpoint.searchParams.set('offset', String((Math.max(1, page) - 1) * pageSize));
+    endpoint.searchParams.set('limit', String(Math.min(500, Math.max(1, pageSize))));
+    const response = await fetch(endpoint, { cache: 'no-store', headers });
+    if (!response.ok) throw new Error('Unable to load buildings.');
+    candidateRows = await response.json() as Record<string, unknown>[];
+    unfilteredTotal = Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
+  }
+  const candidateBuildings = candidateRows.map(publicBuilding);
   const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*');
   const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*');
   const unitCounts = new URL('/rest/v1/public_building_unit_counts', url); unitCounts.searchParams.set('select', '*');
@@ -122,11 +133,17 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     if (priceBounds.length > 0 && !knownRents.some((value) => priceBounds.some((range) => value >= range.min && value < range.max))) return false;
     return true;
   });
-  const buildings = hasRentFilters ? rentFilteredBuildings.slice((Math.max(1, page) - 1) * pageSize, Math.max(1, page) * pageSize) : candidateBuildings;
+  const availabilitySortedBuildings = [...rentFilteredBuildings].sort((left, right) => {
+    const leftCount = availableCounts.get(left.slug) ?? 0;
+    const rightCount = availableCounts.get(right.slug) ?? 0;
+    const countDifference = rightCount - leftCount;
+    return countDifference || left.name.localeCompare(right.name);
+  });
+  const buildings = mapOnly ? availabilitySortedBuildings : hasRentFilters ? availabilitySortedBuildings.slice((Math.max(1, page) - 1) * pageSize, Math.max(1, page) * pageSize) : candidateBuildings;
   const inventoryByBuilding = Object.fromEntries(buildings.map((b) => {
     const availableCount = availableCounts.get(b.slug);
     return [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, bedroomAvailableCounts: bedroomAvailableCounts.get(b.slug) ?? {}, availableCount: availableCount != null && availableCount > 0 ? availableCount : undefined, roommateInterestCount: interestCounts.get(b.id) }];
   }));
-  const total = hasRentFilters ? rentFilteredBuildings.length : Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
+  const total = mapOnly || hasRentFilters ? availabilitySortedBuildings.length : unfilteredTotal;
   return { buildings, total, inventoryByBuilding };
 }
