@@ -289,7 +289,12 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     />
   ));
 
-  const mapItems = useMemo(() => result.buildings.map((building) => ({
+  const mapItems = useMemo(() => {
+    const hasActiveLocationOrSearchFilter = Boolean(starting.search?.trim()) || starting.boroughs.length > 0 || starting.neighborhoods.length > 0;
+    const mapBuildings = mode === 'buildings' && !hasActiveLocationOrSearchFilter
+      ? result.buildings.filter((building) => building.latitude != null && building.longitude != null && building.latitude >= 40.742 && building.latitude <= 40.775 && building.longitude >= -74.01 && building.longitude <= -73.945)
+      : result.buildings;
+    return mapBuildings.map((building) => ({
     id: building.id,
     slug: building.slug,
     name: building.name,
@@ -304,7 +309,8 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     inventory: result.inventoryByBuilding[building.id],
     latitude: building.latitude,
     longitude: building.longitude,
-  })), [result.buildings, result.inventoryByBuilding]);
+    }));
+  }, [mode, result.buildings, result.inventoryByBuilding, starting.boroughs.length, starting.neighborhoods.length, starting.search]);
 
   if (error) return <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center" role="alert"><AlertCircle className="mb-3 h-10 w-10 text-destructive" /><h1 className="mb-1 text-xl font-semibold">We couldn&apos;t load the buildings</h1><p className="mb-4 text-sm text-muted-foreground">{error}</p><Button type="button" onClick={() => window.location.reload()}>Try again</Button></div>;
   if (result.buildings.length === 0) return <><div className="px-3 pt-4 sm:px-5"><h1 className="font-serif text-2xl font-bold">Buildings</h1></div>{compactFilters}<div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center"><Building2 className="mb-3 h-10 w-10 text-muted-foreground" /><h2 className="mb-1 text-lg font-semibold">No buildings found</h2><p className="mb-4 text-sm text-muted-foreground">Try adjusting or clearing one or more filters.</p><Button asChild variant="outline"><Link href={route}>View all buildings</Link></Button></div></>;
