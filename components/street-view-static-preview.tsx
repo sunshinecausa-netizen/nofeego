@@ -85,7 +85,7 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
       if (!entry.isIntersecting) return;
       setVisible(true);
       observer.disconnect();
-    }, { rootMargin: '200px 0px' });
+    }, { root: null, rootMargin: '0px', threshold: 0.01 });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -140,7 +140,11 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
   return (
     <div ref={containerRef} className={cn('relative h-full w-full overflow-hidden bg-muted', className)}>
       <div className="relative block h-full w-full text-left">
-        {canRequestStreetView ? (
+        {!visible || (status === 'loading' && !canRequestStreetView) ? (
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-secondary/70" aria-hidden="true">
+          <Building2 className="h-14 w-14 text-muted-foreground/25" />
+        </div>
+        ) : canRequestStreetView ? (
         // Google-hosted imagery is referenced directly and is never downloaded or persisted by NoFeeGo.
         // eslint-disable-next-line @next/next/no-img-element
         <img
