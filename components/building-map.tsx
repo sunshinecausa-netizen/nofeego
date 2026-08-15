@@ -67,9 +67,9 @@ function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLa
   const visible = selected.length > 0
     ? available.filter(({ bedroom }) => selected.includes(bedroom))
     : available.length > 0 ? [available.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest)] : [];
-  if (visible.length === 0) return [];
-  const minimum = visible.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest).price;
   const count = item.availableCount ?? 0;
+  if (visible.length === 0) return [{ key: 'availability', text: `${count} ${count === 1 ? 'unit' : 'units'}` }];
+  const minimum = visible.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest).price;
   return [{ key: 'price-and-availability', text: `${Math.round(minimum)}+ ${count} units` }];
 }
 
@@ -106,6 +106,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const drawingModeRef = useRef(false);
   const pinnedPreviewIdRef = useRef<string | null>(null);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
+  const previewOpenersRef = useRef(new Map<string, () => void>());
   const streetViewVisibilityListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const previewOptionsRef = useRef({ comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose });
   useEffect(() => { previewOptionsRef.current = { comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose }; }, [comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose]);
@@ -119,7 +120,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const [mapTypeId, setMapTypeId] = useState<'roadmap' | 'satellite'>('roadmap');
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewError, setStreetViewError] = useState<string | null>(null);
-  const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null && priceLabels(building, selectedBedrooms).length > 0), [buildings, selectedBedrooms]);
+  const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null && building.latitude >= 39 && building.latitude <= 43.5 && building.longitude >= -76 && building.longitude <= -69), [buildings]);
   const locationGroups = useMemo(() => Array.from(validBuildings.reduce((groups, building) => {
     const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
     const group = groups.get(key);
@@ -200,6 +201,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     projectionOverlayRef.current = projectionOverlay;
     const bounds = new google.maps.LatLngBounds();
     const markerRegistry = markersRef.current;
+    const previewOpeners = previewOpenersRef.current;
     const areaBuildingIds = areaBuildingIdsRef.current;
     const designTokens = getComputedStyle(document.documentElement);
     const markerColor = designTokens.getPropertyValue('--map-marker').trim() || '#DC2626';
@@ -217,7 +219,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         icon: priceMarkerIcon(labels, markerColor),
       });
 
-      const openPreview = () => {
+      const openPreview = (focusedBuildingId = group[0].id) => {
         cancelClose();
         previewRoot?.unmount();
         const content = document.createElement('div');
@@ -236,7 +238,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
           queueMicrotask(() => rootToUnmount?.unmount());
         };
         const options = previewOptionsRef.current;
-        previewRoot.render(<div className="space-y-3">{group.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted variant="map" onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onClose={closePreview} />)}</div>);
+        const orderedGroup = [...group].sort((left, right) => Number(right.id === focusedBuildingId) - Number(left.id === focusedBuildingId));
+        previewRoot.render(<div className="space-y-3">{orderedGroup.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted={item.id === focusedBuildingId} variant="map" onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onSelect={(id) => { pinnedPreviewIdRef.current = id; onBuildingSelect?.(id); }} onClose={closePreview} />)}</div>);
         infoWindow.setContent(content);
         const markerClearance = labels.length * 25 + 24;
         infoWindow.setOptions({ pixelOffset: new google.maps.Size(0, -markerClearance) });
@@ -244,12 +247,12 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         infoWindow.open({ map, shouldFocus: false });
       };
 
-      const focusAndOpenPreview = () => {
+      const focusAndOpenPreview = (focusedBuildingId = group[0].id) => {
         let opened = false;
         const openOnce = () => {
           if (opened) return;
           opened = true;
-          openPreview();
+          openPreview(focusedBuildingId);
         };
         google.maps.event.addListenerOnce(map, 'idle', openOnce);
         if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
@@ -270,9 +273,15 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         const focusedBuilding = group[0];
         pinnedPreviewIdRef.current = focusedBuilding.id;
         onBuildingSelect?.(focusedBuilding.id);
-        focusAndOpenPreview();
+        focusAndOpenPreview(focusedBuilding.id);
       });
-      group.forEach((item) => markerRegistry.set(item.id, marker));
+      group.forEach((item) => {
+        markerRegistry.set(item.id, marker);
+        previewOpeners.set(item.id, () => {
+          pinnedPreviewIdRef.current = item.id;
+          focusAndOpenPreview(item.id);
+        });
+      });
       return marker;
     });
     const markerClusterer = new MarkerClusterer({
@@ -313,6 +322,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       infoWindowRef.current = null;
       googleMapRef.current = null;
       markerRegistry.clear();
+      previewOpeners.clear();
       markerClusterer.clearMarkers();
       markers.forEach((marker) => marker.setMap(null));
     };
@@ -421,9 +431,9 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     if (!building || !map) return;
     map.panTo({ lat: building.latitude!, lng: building.longitude! });
     if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
-    const marker = markersRef.current.get(selectedBuildingId);
-    if (!marker) return;
-    const previewTimer = window.setTimeout(() => google.maps.event.trigger(marker, 'click'), 250);
+    const openPreview = previewOpenersRef.current.get(selectedBuildingId);
+    if (!openPreview) return;
+    const previewTimer = window.setTimeout(openPreview, 250);
     return () => window.clearTimeout(previewTimer);
   }, [selectedBuildingId, selectionRequestKey, validBuildings]);
 
@@ -438,7 +448,9 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     new Set(markersRef.current.values()).forEach((marker) => {
       const active = activeMarkers.has(marker);
       const selected = marker === selectedMarker;
-      const item = validBuildings.find((building) => markersRef.current.get(building.id) === marker);
+      const item = selected && selectedBuildingId
+        ? validBuildings.find((building) => building.id === selectedBuildingId)
+        : validBuildings.find((building) => markersRef.current.get(building.id) === marker);
       if (item) marker.setIcon(priceMarkerIcon(priceLabels(item, selectedBedrooms), markerColor, selected));
       marker.setZIndex(selected ? 2000 : active ? 1000 : undefined);
       marker.setAnimation(selected ? google.maps.Animation.BOUNCE : null);
