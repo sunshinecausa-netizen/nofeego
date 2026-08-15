@@ -28,6 +28,10 @@ export type BuildingMapItem = {
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
 const NYC_CENTER = { lat: 40.7306, lng: -73.9352 };
+function publicStreetName(address?: string | null) {
+  if (!address) return 'Available building';
+  return address.replace(/^\s*\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?\s+/, '').replace(/(?:,|\s)+(?:Apt|Apartment|Unit|Suite|Bldg|Building|Floor|#)\s*.*$/i, '').trim() || 'Available building';
+}
 function MapResultCount({ buildingCount, locationCount }: { buildingCount: number; locationCount: number }) {
   return (
     <span className="absolute left-3 top-3 z-10 rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
@@ -209,7 +213,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       const marker = new google.maps.Marker({
         map,
         position,
-        title: group.map((item) => item.name).join(', '),
+        title: group.map((item) => publicStreetName(item.address)).join(', '),
         icon: priceMarkerIcon(labels, markerColor),
       });
 
@@ -324,7 +328,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     // The panorama is requested only after this explicit user action.
     const panorama = map.getStreetView();
     if (!streetViewVisibilityListenerRef.current) {
-      panorama.setOptions({ addressControl: true, enableCloseButton: true, fullscreenControl: true });
+      panorama.setOptions({ addressControl: false, enableCloseButton: true, fullscreenControl: true });
       streetViewVisibilityListenerRef.current = panorama.addListener('visible_changed', () => {
         setStreetViewActive(panorama.getVisible());
         if (!panorama.getVisible()) setStreetViewError(null);
@@ -452,7 +456,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
           const y = ((40.93 - building.latitude!) / 0.35) * 100;
           if (x < 0 || x > 100 || y < 0 || y > 100) return null;
           const labels = priceLabels(building, selectedBedrooms);
-          return <a key={building.id} href={`/buildings/${building.slug}`} title={building.name} aria-label={`${building.name}: ${labels.map((label) => label.text).join(', ')}`} className="group absolute -translate-x-1/2 -translate-y-full space-y-0.5" style={{ left: `${x}%`, top: `${y}%` }}>{labels.map((label) => <span key={label.key} className="block whitespace-nowrap rounded-full bg-[var(--map-marker)] px-2.5 py-1 text-sm font-bold leading-none text-white shadow-sm transition-transform group-hover:scale-105">{label.text}</span>)}</a>;
+          const streetName = publicStreetName(building.address);
+          return <a key={building.id} href={`/buildings/${building.slug}`} title={streetName} aria-label={`${streetName}: ${labels.map((label) => label.text).join(', ')}`} className="group absolute -translate-x-1/2 -translate-y-full space-y-0.5" style={{ left: `${x}%`, top: `${y}%` }}>{labels.map((label) => <span key={label.key} className="block whitespace-nowrap rounded-full bg-[var(--map-marker)] px-2.5 py-1 text-sm font-bold leading-none text-white shadow-sm transition-transform group-hover:scale-105">{label.text}</span>)}</a>;
         })}
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-white/95 px-3 py-2 text-sm shadow-sm"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" /><span>Interactive map unavailable. Building locations remain selectable in this fallback view.</span></div>
         </div>
