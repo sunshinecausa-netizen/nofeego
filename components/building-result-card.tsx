@@ -126,8 +126,8 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const compact = variant === 'map';
   const requestContext = new URLSearchParams({ buildingId: building.id, buildingSlug: building.slug, buildingName: building.name, neighborhood: building.neighborhood ?? building.borough ?? '', address: fullAddress }).toString();
   const savedAndCompared = favorited && compared;
-  const availableCount = inventory?.availableCount ?? 0;
-  const availableUnitsLabel = `${availableCount} available ${availableCount === 1 ? 'unit' : 'units'}`;
+  const availableCount = inventory?.availableCount;
+  const availableUnitsLabel = availableCount != null && availableCount > 0 ? `${availableCount} available ${availableCount === 1 ? 'unit' : 'units'}` : 'Availability not verified';
   const availablePlans = BEDROOM_PRICE_LABELS.flatMap(([bedroom, label]) => {
     const price = inventory?.bedroomMinimums[bedroom];
     return price == null ? [] : [{ bedroom, label, price }];

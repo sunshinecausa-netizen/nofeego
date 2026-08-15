@@ -342,7 +342,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
                 const amenities = new Set(building.amenities ?? []);
                 return <tr key={building.id} className="border-t border-border align-middle hover:bg-muted/30">
                   <td className="px-3 py-3"><Link href={`/buildings/${building.slug}`} className="font-semibold text-primary hover:underline">{building.name}</Link><p className="mt-0.5 text-[11px] text-muted-foreground">{building.neighborhood ?? building.borough ?? 'New York metro'}</p></td>
-                  <td className="whitespace-nowrap px-3 py-3 font-medium">{inventory ? `${inventory.availableCount} ${inventory.availableCount === 1 ? 'unit' : 'units'}` : 'Not available'}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-medium">{inventory?.availableCount != null ? `${inventory.availableCount} ${inventory.availableCount === 1 ? 'unit' : 'units'}` : 'Not verified'}</td>
                   {([0, 1, 2, 3] as const).map((bedroom) => <td key={bedroom} className="whitespace-nowrap px-3 py-3 font-semibold">{formatStartingRent(inventory?.bedroomMinimums[bedroom], Object.values(inventory?.bedroomMinimums ?? {}).some((value) => value != null))}</td>)}
                   {COMPARE_AMENITIES.map(([label, values]) => {
                     const confirmed = values.some((value) => amenities.has(value));

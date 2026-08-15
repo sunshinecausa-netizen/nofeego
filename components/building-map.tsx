@@ -67,10 +67,10 @@ function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLa
   const visible = selected.length > 0
     ? available.filter(({ bedroom }) => selected.includes(bedroom))
     : available.length > 0 ? [available.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest)] : [];
-  const count = item.availableCount ?? 0;
-  if (visible.length === 0) return [{ key: 'availability', text: `${count} ${count === 1 ? 'unit' : 'units'}` }];
+  const count = item.availableCount;
+  if (visible.length === 0) return count != null && count > 0 ? [{ key: 'availability', text: `${count} ${count === 1 ? 'unit' : 'units'}` }] : [];
   const minimum = visible.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest).price;
-  return [{ key: 'price-and-availability', text: `${Math.round(minimum)}+ ${count} units` }];
+  return [{ key: 'price-and-availability', text: count != null && count > 0 ? `${Math.round(minimum)}+ ${count} units` : `${Math.round(minimum)}+` }];
 }
 
 function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) {
