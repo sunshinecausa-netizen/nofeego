@@ -76,7 +76,8 @@ const COMPARE_AMENITIES = [
 ] as const;
 
 function MultiSelectMenu({ label, options, selected, onToggle, alignRight = false, fitOptions = false }: { label: string; options: ReadonlyArray<readonly [string, string]>; selected: string[]; onToggle: (value: string, checked: boolean) => void; alignRight?: boolean; fitOptions?: boolean }) {
-  return <details className="group relative w-auto shrink-0"><summary className="flex h-10 min-w-max cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-input bg-background px-3 text-sm"><span>{label}{selected.length > 0 ? ` (${selected.length})` : ''}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary><div className={`mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-white p-2 shadow-xl sm:absolute sm:top-10 sm:z-50 ${fitOptions ? 'w-max max-w-[calc(100vw-2rem)]' : 'min-w-56'} ${alignRight ? 'sm:right-0' : 'sm:left-0'}`}>{options.map(([value, optionLabel]) => <label key={value} className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60 ${fitOptions ? 'whitespace-nowrap' : ''}`}><Checkbox checked={selected.includes(value)} onCheckedChange={(checked) => onToggle(value, checked === true)} />{optionLabel}</label>)}</div></details>;
+  const displayLabel = `${label}${selected.length > 0 ? ` (${selected.length})` : ''}`;
+  return <details className="group relative min-w-0 flex-1"><summary className="flex h-10 min-w-0 cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-2.5 text-sm"><span className="min-w-0 truncate" title={displayLabel}>{displayLabel}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary><div className={`mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-white p-2 shadow-xl sm:absolute sm:top-10 sm:z-50 ${fitOptions ? 'w-max max-w-[calc(100vw-2rem)]' : 'min-w-56'} ${alignRight ? 'sm:right-0' : 'sm:left-0'}`}>{options.map(([value, optionLabel]) => <label key={value} className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60 ${fitOptions ? 'whitespace-nowrap' : ''}`}><Checkbox checked={selected.includes(value)} onCheckedChange={(checked) => onToggle(value, checked === true)} />{optionLabel}</label>)}</div></details>;
 }
 
 function formatStartingRent(value: number | undefined, hasStreetEasyRentData: boolean) {
@@ -214,7 +215,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     setSelectedBuildingId(id);
     setMobileView('map');
     window.setTimeout(() => {
-      const card = document.querySelector<HTMLElement>(`[data-building-id="${CSS.escape(id)}"]`);
+      const card = document.querySelector<HTMLElement>(`[data-building-id="${CSS.escape(id)}"][data-card-variant="list"]`);
       card?.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
     }, 80);
   }, [setSelectedBuildingId, setMobileView]);
@@ -243,18 +244,17 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       <div className="flex items-center gap-2 md:hidden"><Button type="button" variant="outline" className="flex-1 justify-between" onClick={() => setMobileFiltersOpen(true)}>Filters {draftTags.length > 0 && <Badge variant="secondary">{draftTags.length}</Badge>}</Button><Button type="submit"><Search className="mr-2 h-5 w-5" />Apply</Button></div>
       <div className={`${mobileFiltersOpen ? 'fixed inset-x-0 bottom-0 top-12 z-[70] overflow-y-auto rounded-t-2xl border bg-white p-4 shadow-2xl' : 'hidden'} md:static md:block md:overflow-visible md:border-0 md:p-0 md:shadow-none`}>
       <div className="mb-4 flex items-center justify-between md:hidden"><h2 className="font-serif text-xl font-bold">Filters</h2><Button type="button" size="icon" variant="ghost" aria-label="Close filters" onClick={() => setMobileFiltersOpen(false)}><X className="h-5 w-5" /></Button></div>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[280px] flex-[2_1_420px]"><AISearchInput id="building-search" value={query} onChange={(event) => setQuery(event.target.value)} label={locale === 'zh-Hans' ? 'AI找房' : 'AI Search'} placeholder={locale === 'zh-Hans' ? '输入楼盘、地址、社区或你的找房需求' : 'Enter a building, address, neighborhood, or what you are looking for'} loading={searchSubmitting} /></div>
-        <div className="flex min-w-0 flex-[4_1_620px] flex-wrap gap-2">
+      <div className="grid gap-2">
+        <div className="min-w-0"><AISearchInput id="building-search" value={query} onChange={(event) => setQuery(event.target.value)} label={locale === 'zh-Hans' ? 'AI找房' : 'AI Search'} placeholder={locale === 'zh-Hans' ? '输入楼盘、地址、社区或你的找房需求' : 'Enter a building, address, neighborhood, or what you are looking for'} loading={searchSubmitting} /></div>
+        <div className="flex min-w-0 flex-nowrap items-end gap-2">
           <MultiSelectMenu label="Price" options={PRICE_RANGES} selected={priceRanges} onToggle={(value, checked) => toggleValue(setPriceRanges, value, checked)} />
           <MultiSelectMenu label="Beds" options={BEDROOM_OPTIONS} selected={bedrooms} onToggle={(value, checked) => toggleValue(setBedrooms, value, checked)} />
           <MultiSelectMenu label="Bath" options={BATHROOM_OPTIONS} selected={bathrooms} onToggle={(value, checked) => toggleValue(setBathrooms, value, checked)} />
           <MultiSelectMenu label={locale === 'zh-Hans' ? '入住日期' : 'Move-in Date'} options={MOVE_IN_OPTIONS} selected={moveInFlex} onToggle={(value, checked) => toggleValue(setMoveInFlex, value, checked)} alignRight fitOptions />
-          <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative min-w-0 max-w-[190px] shrink">
+          <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative min-w-0 flex-[1.35_1_0%]">
             <summary className="flex h-10 min-w-0 cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm"><span className="min-w-0 truncate" title={locale === 'zh-Hans' ? '行政区与社区' : 'Borough & Neighborhood'}>{locale === 'zh-Hans' ? '行政区与社区' : 'Borough & Neighborhood'}{boroughs.length + neighborhoods.length > 0 ? ` (${boroughs.length + neighborhoods.length})` : ''}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary>
             <div className="mt-2 grid overflow-hidden rounded-xl border border-border bg-white shadow-xl md:fixed md:left-1/2 md:z-50 md:mt-0 md:w-[min(92vw,720px)] md:-translate-x-1/2 md:grid-cols-[180px_1fr]"><div className="border-b p-2 md:border-b-0 md:border-r">{BOROUGHS.map((borough) => <label key={borough} onMouseEnter={() => setHoveredBorough(borough)} onFocus={() => setHoveredBorough(borough)} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm ${hoveredBorough === borough ? 'bg-muted' : 'hover:bg-muted/60'}`}><Checkbox checked={boroughs.includes(borough)} onCheckedChange={(checked) => toggleBorough(borough, checked === true)} />{borough}</label>)}</div><div className="max-h-72 overflow-y-auto p-3">{NEIGHBORHOOD_GROUPS.filter((group) => group.borough === hoveredBorough).map((group) => { const selectedCount = group.options.filter(([value]) => neighborhoods.includes(value)).length; return <section key={group.title} className="mb-3"><label className="mb-1 flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-xs font-bold uppercase tracking-wide text-primary hover:bg-muted/60"><Checkbox className="rounded-none" checked={selectedCount === group.options.length ? true : selectedCount > 0 ? 'indeterminate' : false} onCheckedChange={(checked) => toggleNeighborhoodGroup(group.options, checked === true)} />All {group.title}</label>{group.options.map(([value, label]) => <label key={value} className="ml-6 flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={neighborhoods.includes(value)} onCheckedChange={(checked) => toggleNeighborhood(value, checked === true)} />{label}</label>)}</section>; })}</div></div>
           </details>
-        </div>
         <div className="flex shrink-0 items-end gap-2">
         <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative">
           <summary className="flex h-10 cursor-pointer list-none items-center justify-start gap-1.5 rounded-md border border-input bg-background px-3 text-left text-sm font-normal leading-tight text-foreground"><SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" /><span>Filters</span>{activeFilterCount > 0 && <Badge variant="secondary" className="px-1">{activeFilterCount}</Badge>}<ChevronDown className="ml-auto h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary>
@@ -264,7 +264,8 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">More amenities</legend><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">{FILTER_AMENITIES.map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
           </div>
         </details>
-        <button type="submit" className="sr-only">Search</button>
+        <Button type="submit" size="icon" className="h-10 w-10 shrink-0" aria-label="Search" title="Search"><Search className="h-4 w-4" /></Button>
+        </div>
         </div>
       </div>
       <div className="sticky bottom-0 mt-4 grid grid-cols-2 gap-3 border-t bg-white py-3 md:hidden"><Button type="button" variant="outline" onClick={clearDraftFilters}>Clear All</Button><Button type="submit">Apply</Button></div>

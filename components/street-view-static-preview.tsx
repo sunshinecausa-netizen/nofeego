@@ -139,7 +139,7 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
 
   return (
     <div ref={containerRef} className={cn('relative h-full w-full overflow-hidden bg-muted', className)}>
-      <button type="button" className="relative block h-full w-full text-left" aria-label={`Open interactive Google Street View near ${buildingName}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setInteractiveError(false); setInteractiveOpen(true); }}>
+      <div className="relative block h-full w-full text-left">
         {canRequestStreetView ? (
         // Google-hosted imagery is referenced directly and is never downloaded or persisted by NoFeeGo.
         // eslint-disable-next-line @next/next/no-img-element
@@ -162,8 +162,8 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
           <span className="sr-only">Building Snapshot unavailable</span>
         </div>
         )}
-        <span className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-md bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow"><Expand className="h-4 w-4" />{canRequestStreetView ? 'Open Google Street View' : 'Open interactive view'}</span>
-      </button>
+        <button type="button" className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-md bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow" aria-label={`Open interactive Google Street View near ${buildingName}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setInteractiveError(false); setInteractiveOpen(true); }}><Expand className="h-4 w-4" />{canRequestStreetView ? 'Open Google Street View' : 'Open interactive view'}</button>
+      </div>
       {interactiveOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/75 p-4" role="dialog" aria-modal="true" aria-label={`Interactive Street View near ${buildingName}`} onClick={() => setInteractiveOpen(false)}>
           <div className="relative h-[min(76vh,720px)] w-[min(94vw,1100px)] overflow-hidden rounded-2xl border border-white/30 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
