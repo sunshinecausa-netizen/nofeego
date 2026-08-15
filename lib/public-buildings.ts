@@ -4,6 +4,7 @@ export type PublicAvailabilityStatus = 'unavailable' | 'limited' | 'available';
 export type BuildingInventorySummary = {
   availabilityStatus: PublicAvailabilityStatus;
   bedroomMinimums: Partial<Record<0 | 1 | 2 | 3, number>>;
+  bedroomAvailableCounts: Partial<Record<0 | 1 | 2 | 3, number>>;
   roommateInterestCount?: number;
   availableCount?: number; concessionText?: never; updatedAt?: never;
 };
@@ -57,14 +58,14 @@ export async function fetchPublicBuildingBySlug(slug: string): Promise<Building 
 
 export async function fetchPublicBuildingInventoryBySlug(slug: string): Promise<BuildingInventorySummary> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, availableCount: 0 };
+  if (!url || !anonKey) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {}, availableCount: 0 };
   const endpoint = new URL('/rest/v1/public_building_rent_summary', url); endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('building_slug', `eq.${slug}`); endpoint.searchParams.set('limit', '1');
   const response = await fetch(endpoint, { cache: 'no-store', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
-  if (!response.ok) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, availableCount: 0 };
+  if (!response.ok) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {}, availableCount: 0 };
   const [row] = await response.json() as Array<{ studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }>;
-  if (!row) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, availableCount: 0 };
+  if (!row) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {}, availableCount: 0 };
   const bedroomMinimums = Object.fromEntries([[0, row.studio_min_rent], [1, row.one_bed_min_rent], [2, row.two_bed_min_rent], [3, row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number'));
-  return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums, availableCount: 0 };
+  return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums, bedroomAvailableCounts: {}, availableCount: 0 };
 }
 
 export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [], priceRanges = [], bedrooms = [] }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
@@ -91,7 +92,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const roommateCounts = new URL('/rest/v1/public_roommate_interest_counts', url); roommateCounts.searchParams.set('select', '*');
   type AvailabilityRow = { building_slug: string; availability_status: PublicAvailabilityStatus };
   type RentRow = { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null };
-  type UnitCountRow = { building_slug: string; available_unit_count: number };
+  type UnitCountRow = { building_slug: string; available_unit_count: number; studio_available_count: number; one_bed_available_count: number; two_bed_available_count: number; three_bed_available_count: number };
   type RoommateCountRow = { building_id: string; interested_count: number };
   const [availabilityRows, rentRows, unitCountRows, roommateRows] = await Promise.all([
     fetchAllPublicViewRows<AvailabilityRow>(availability, headers),
@@ -104,7 +105,11 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const rents = new Map<string, Partial<Record<0 | 1 | 2 | 3, number>>>();
   for (const row of rentRows) rents.set(row.building_slug, Object.fromEntries([[0,row.studio_min_rent],[1,row.one_bed_min_rent],[2,row.two_bed_min_rent],[3,row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number')));
   const availableCounts = new Map<string, number>();
-  for (const row of unitCountRows) availableCounts.set(row.building_slug, row.available_unit_count);
+  const bedroomAvailableCounts = new Map<string, Partial<Record<0 | 1 | 2 | 3, number>>>();
+  for (const row of unitCountRows) {
+    availableCounts.set(row.building_slug, row.available_unit_count);
+    bedroomAvailableCounts.set(row.building_slug, { 0: row.studio_available_count, 1: row.one_bed_available_count, 2: row.two_bed_available_count, 3: row.three_bed_available_count });
+  }
   const interestCounts = new Map<string, number>();
   for (const row of roommateRows) interestCounts.set(row.building_id, row.interested_count);
   const selectedBedrooms = bedrooms.filter((value) => ['0', '1', '2', '3', '4'].includes(value)).map(Number);
@@ -118,7 +123,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     return true;
   });
   const buildings = hasRentFilters ? rentFilteredBuildings.slice((Math.max(1, page) - 1) * pageSize, Math.max(1, page) * pageSize) : candidateBuildings;
-  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, availableCount: availableCounts.get(b.slug) ?? 0, roommateInterestCount: interestCounts.get(b.id) }]));
+  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, bedroomAvailableCounts: bedroomAvailableCounts.get(b.slug) ?? {}, availableCount: availableCounts.get(b.slug) ?? 0, roommateInterestCount: interestCounts.get(b.id) }]));
   const total = hasRentFilters ? rentFilteredBuildings.length : Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   return { buildings, total, inventoryByBuilding };
 }
