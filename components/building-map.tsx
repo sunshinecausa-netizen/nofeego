@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
+import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BuildingCard } from '@/components/building-result-card';
@@ -74,13 +74,13 @@ function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLa
 }
 
 function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) {
-  const rowHeight = 25;
+  const rowHeight = 22;
   const halo = selected ? 4 : 0;
-  const width = Math.max(62, ...labels.map(({ text }) => text.length * 7.1 + 22)) + halo * 2;
+  const width = Math.max(54, ...labels.map(({ text }) => text.length * 6.2 + 18)) + halo * 2;
   const bodyHeight = labels.length * rowHeight;
   const height = bodyHeight + 8 + halo * 2;
   const dividerLines = labels.slice(1).map((_, index) => `<line x1="${halo + 7}" x2="${width - halo - 7}" y1="${halo + (index + 1) * rowHeight}" y2="${halo + (index + 1) * rowHeight}" stroke="rgba(255,255,255,.35)"/>`).join('');
-  const text = labels.map((label, index) => `<text x="${width / 2}" y="${halo + index * rowHeight + 17}" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="14" font-weight="700">${label.text}</text>`).join('');
+  const text = labels.map((label, index) => `<text x="${width / 2}" y="${halo + index * rowHeight + 15}" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="12" font-weight="700">${label.text}</text>`).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${selected ? `<rect width="${width}" height="${bodyHeight + halo * 2}" rx="16" fill="rgba(220,38,38,.22)"/>` : ''}<rect x="${halo}" y="${halo}" width="${width - halo * 2}" height="${bodyHeight}" rx="12.5" fill="${color}"/><path d="M ${width / 2 - 5} ${halo + bodyHeight - 1} L ${width / 2} ${halo + bodyHeight + 7} L ${width / 2 + 5} ${halo + bodyHeight - 1} Z" fill="${color}"/>${dividerLines}${text}</svg>`;
   return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, scaledSize: new google.maps.Size(width, height), anchor: new google.maps.Point(width / 2, height) };
 }
@@ -287,6 +287,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     const markerClusterer = new MarkerClusterer({
       map,
       markers,
+      algorithm: new SuperClusterAlgorithm({ radius: 18, maxZoom: 9 }),
       renderer: {
         render: ({ count, position }) => new google.maps.Marker({
           position,
