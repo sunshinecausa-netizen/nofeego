@@ -175,7 +175,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           </div>
           <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border pt-2.5">
             <Button asChild variant="ghost" className="h-9 justify-start px-0 text-sm font-semibold text-navy hover:bg-transparent hover:text-primary"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>Find a Roommate</Link></Button>
-            <Button asChild variant="outline" className="h-9 rounded-xl border-primary bg-primary/[0.03] px-4 text-sm font-semibold text-primary hover:bg-primary/[0.08] hover:text-primary"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>Check Latest Availability</Link></Button>
+            <Button asChild variant="outline" className="h-9 rounded-xl border-primary bg-primary/[0.03] px-4 text-sm font-semibold text-primary hover:bg-primary/[0.08] hover:text-primary"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>View Availability Details</Link></Button>
           </div>
         </div>
       </article>
@@ -215,7 +215,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
 
           <div className="mt-auto grid grid-cols-2 gap-3">
             <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span className="leading-5 text-navy"><span className="block whitespace-nowrap text-sm font-bold">Find a roommate</span>{(inventory?.roommateInterestCount ?? 0) >= 3 ? <span className="block text-[11px] font-medium leading-4">{inventory?.roommateInterestCount} people are interested in sharing this home</span> : <><span className="block whitespace-nowrap text-[11px] font-medium leading-4">Join others interested in</span><span className="block whitespace-nowrap text-[11px] font-medium leading-4">sharing this home.</span></>}</span></Link></Button>
-            <Button asChild variant="outline" className="h-20 rounded-xl border-primary bg-primary/[0.03] px-4 text-primary hover:bg-primary/[0.08] hover:text-primary"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-3 h-8 w-8 shrink-0" /><span className="text-sm font-bold">Check Latest Availability</span></Link></Button>
+            <Button asChild variant="outline" className="h-20 rounded-xl border-primary bg-primary/[0.03] px-4 text-primary hover:bg-primary/[0.08] hover:text-primary"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-3 h-8 w-8 shrink-0" /><span className="text-sm font-bold">View Availability Details</span></Link></Button>
           </div>
         </div>
       </div>
