@@ -121,13 +121,23 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewError, setStreetViewError] = useState<string | null>(null);
   const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null && building.latitude >= 39 && building.latitude <= 43.5 && building.longitude >= -76 && building.longitude <= -69), [buildings]);
-  const locationGroups = useMemo(() => Array.from(validBuildings.reduce((groups, building) => {
-    const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
-    const group = groups.get(key);
-    if (group) group.push(building);
-    else groups.set(key, [building]);
-    return groups;
-  }, new Map<string, BuildingMapItem[]>()).values()), [validBuildings]);
+  const markerPositions = useMemo(() => {
+    const coordinateGroups = validBuildings.reduce((groups, building) => {
+      const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
+      const group = groups.get(key);
+      if (group) group.push(building);
+      else groups.set(key, [building]);
+      return groups;
+    }, new Map<string, BuildingMapItem[]>());
+    const positions = new Map<string, google.maps.LatLngLiteral>();
+    coordinateGroups.forEach((group) => group.forEach((building, index) => {
+      const angle = group.length > 1 ? (Math.PI * 2 * index) / group.length : 0;
+      const offset = group.length > 1 ? 0.000045 : 0;
+      positions.set(building.id, { lat: building.latitude! + Math.sin(angle) * offset, lng: building.longitude! + Math.cos(angle) * offset });
+    }));
+    return positions;
+  }, [validBuildings]);
+  const locationGroups = useMemo(() => validBuildings.map((building) => [building]), [validBuildings]);
 
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY || scriptLoaded || loadError) return;
@@ -209,7 +219,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     const markerLabelColor = designTokens.getPropertyValue('--map-marker-label').trim() || '#16324F';
     const markers = locationGroups.map((group) => {
       const [building] = group;
-      const position = { lat: building.latitude!, lng: building.longitude! };
+      const position = markerPositions.get(building.id) ?? { lat: building.latitude!, lng: building.longitude! };
       bounds.extend(position);
       const labels = priceLabels(building, selectedBedrooms);
       const marker = new google.maps.Marker({
@@ -336,7 +346,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       markerClusterer.clearMarkers();
       markers.forEach((marker) => marker.setMap(null));
     };
-  }, [scriptLoaded, locationGroups, onBuildingHover, onBuildingSelect, selectedBedrooms, validBuildings]);
+  }, [scriptLoaded, locationGroups, markerPositions, onBuildingHover, onBuildingSelect, selectedBedrooms, validBuildings]);
 
   useEffect(() => {
     googleMapRef.current?.setMapTypeId(mapTypeId);
