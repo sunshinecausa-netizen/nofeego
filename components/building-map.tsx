@@ -244,6 +244,15 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         const markerClearance = labels.length * 25 + 24;
         infoWindow.setOptions({ pixelOffset: new google.maps.Size(0, -markerClearance) });
         infoWindow.setPosition(position);
+        google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+          window.requestAnimationFrame(() => {
+            const mapBounds = map.getDiv().getBoundingClientRect();
+            const previewBounds = content.getBoundingClientRect();
+            const horizontalOffset = previewBounds.left + previewBounds.width / 2 - (mapBounds.left + mapBounds.width / 2);
+            const verticalOffset = previewBounds.top + previewBounds.height / 2 - (mapBounds.top + mapBounds.height / 2);
+            if (Math.abs(horizontalOffset) > 4 || Math.abs(verticalOffset) > 4) map.panBy(horizontalOffset, verticalOffset);
+          });
+        });
         infoWindow.open({ map, shouldFocus: false });
       };
 
