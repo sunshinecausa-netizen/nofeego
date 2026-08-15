@@ -162,7 +162,7 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
           <span className="sr-only">Building Snapshot unavailable</span>
         </div>
         )}
-        <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-700 shadow"><Expand className="h-3 w-3" />{canRequestStreetView ? 'Open Google Street View' : 'Open interactive view'}</span>
+        <span className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-md bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow"><Expand className="h-4 w-4" />{canRequestStreetView ? 'Open Google Street View' : 'Open interactive view'}</span>
       </button>
       {interactiveOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/75 p-4" role="dialog" aria-modal="true" aria-label={`Interactive Street View near ${buildingName}`} onClick={() => setInteractiveOpen(false)}>
