@@ -260,7 +260,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <fieldset className="border-t border-border/60 pt-3"><legend className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">More amenities</legend><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">{FILTER_AMENITIES.map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={amenities.includes(value)} onCheckedChange={(checked) => toggleAmenity(value, checked === true)} />{label}</label>)}</div></fieldset>
           </div>
         </details>
-        <Button type="submit" className="h-10 w-auto shrink-0 justify-center px-4 text-sm"><Search className="mr-1.5 h-4 w-4" />Search</Button>
+        <Button type="submit" size="icon" className="h-10 w-10 shrink-0" aria-label="Search" title="Search"><Search className="h-4 w-4" /></Button>
       </div>
       <div className="sticky bottom-0 mt-4 grid grid-cols-2 gap-3 border-t bg-white py-3 md:hidden"><Button type="button" variant="outline" onClick={clearDraftFilters}>Clear All</Button><Button type="submit">Apply</Button></div>
       </div>
