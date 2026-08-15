@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Building2, MapPin, Home, Loader2, TrendingUp,
-  CheckCircle, Clock, DollarSign, LogOut, Users, Settings, FileClock,
+  CheckCircle, Clock, DollarSign, LogOut, Users, Settings, FileClock, Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -127,6 +127,7 @@ export default function AdminPage() {
         <QuickLink href="/admin/settings" icon={Settings} title="Settings" description="Platform configuration" />
         <QuickLink href="/admin/pending" icon={FileClock} title="Pending Submissions" description={`${pendingSubmissions.length} awaiting review`} />
         <QuickLink href="/admin/roommate-interests" icon={Users} title="Roommate Interests" description="Review and follow up" />
+        <QuickLink href="/admin/rental-cases" icon={Camera} title="Rental Cases" description="Publish current units and photos" />
       </div>
 
       {/* Pending submissions */}

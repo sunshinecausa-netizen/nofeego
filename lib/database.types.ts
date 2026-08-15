@@ -55,6 +55,16 @@ export interface Database {
         contact_phone: string | null; bedrooms: string | null; roommate_preferences: string | null;
         status: 'new' | 'Submitted' | 'In Review' | 'Responded' | 'Closed'; created_at: string; updated_at: string;
       }>;
+      rental_cases: Table<{
+        id: string; inquiry_id: string; user_id: string; building_id: string; selected_floor_plan: string | null;
+        displayed_starting_rent: number | null; preferred_unit_type: string | null; status: 'Requested' | 'In Review' | 'Options Ready' | 'Closed';
+        created_at: string; updated_at: string;
+      }>;
+      rental_case_options: Table<{
+        id: string; rental_case_id: string; unit_number: string | null; current_rent: number | null; concession: string | null;
+        available_date: string | null; floor_plan_url: string | null; authorized_photo_urls: string[]; tour_method: string | null;
+        information_valid_until: string | null; notes: string | null; created_at: string; updated_at: string;
+      }>;
       roommate_profiles: Table<{
         user_id: string; bio: string | null; notification_method: 'email' | 'sms'; contact_email: string | null;
         contact_phone: string | null; contact_sharing_enabled: boolean; is_paused: boolean; created_at: string; updated_at: string;
