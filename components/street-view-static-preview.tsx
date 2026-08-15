@@ -123,7 +123,7 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
       panorama = new google.maps.StreetViewPanorama(panoramaRef.current, {
         position: response.data.location.latLng,
         pov: { heading: 0, pitch: 0 },
-        addressControl: true,
+        addressControl: false,
         fullscreenControl: true,
         enableCloseButton: false,
         visible: true,
