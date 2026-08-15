@@ -13,6 +13,22 @@ export type BuildingFilters = { search?: string; boroughs?: string[]; neighborho
 const ALLOWED_BOROUGHS = new Set(['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island']);
 const ALLOWED_AMENITIES = new Set(['Pets Allowed', 'Small Dogs Allowed', 'Large Dogs Allowed', 'Cats Allowed', 'No Pets Allowed', 'Elevator', 'Gym', 'Doorman', 'Laundry In Building', 'In-Unit W/D Available', 'Dishwasher', 'Air Conditioning', 'Outdoor Space', 'Pool', 'Parking', 'Bike Storage', 'Package Room', 'Storage Available', 'Coworking Space', 'Lounge', 'Playroom', 'Wheelchair Accessible']);
 
+const PUBLIC_VIEW_PAGE_SIZE = 1000;
+
+async function fetchAllPublicViewRows<T>(endpoint: URL, headers: Record<string, string>): Promise<T[]> {
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += PUBLIC_VIEW_PAGE_SIZE) {
+    const pageEndpoint = new URL(endpoint);
+    pageEndpoint.searchParams.set('offset', String(offset));
+    pageEndpoint.searchParams.set('limit', String(PUBLIC_VIEW_PAGE_SIZE));
+    const response = await fetch(pageEndpoint, { cache: 'no-store', headers });
+    if (!response.ok) return [];
+    const page = await response.json() as T[];
+    rows.push(...page);
+    if (page.length < PUBLIC_VIEW_PAGE_SIZE) return rows;
+  }
+}
+
 function publicBuilding(row: Record<string, unknown>): Building {
   return {
     id: String(row.id), slug: String(row.slug), name: String(row.name), address: String(row.address), city: String(row.city), state: String(row.state),
@@ -73,16 +89,24 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*');
   const unitCounts = new URL('/rest/v1/public_building_unit_counts', url); unitCounts.searchParams.set('select', '*');
   const roommateCounts = new URL('/rest/v1/public_roommate_interest_counts', url); roommateCounts.searchParams.set('select', '*');
-  const [availabilityResponse, rentResponse, unitCountResponse, roommateResponse] = await Promise.all([fetch(availability, { cache: 'no-store', headers }), fetch(rentSummary, { cache: 'no-store', headers }), fetch(unitCounts, { cache: 'no-store', headers }), fetch(roommateCounts, { cache: 'no-store', headers })]);
-  const bySlug = new Map<string, PublicAvailabilityStatus>();
-  if (availabilityResponse.ok) for (const row of await availabilityResponse.json() as Array<{ building_slug: string; availability_status: PublicAvailabilityStatus }>) bySlug.set(row.building_slug, row.availability_status);
+  type AvailabilityRow = { building_slug: string; availability_status: PublicAvailabilityStatus };
   type RentRow = { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null };
+  type UnitCountRow = { building_slug: string; available_unit_count: number };
+  type RoommateCountRow = { building_id: string; interested_count: number };
+  const [availabilityRows, rentRows, unitCountRows, roommateRows] = await Promise.all([
+    fetchAllPublicViewRows<AvailabilityRow>(availability, headers),
+    fetchAllPublicViewRows<RentRow>(rentSummary, headers),
+    fetchAllPublicViewRows<UnitCountRow>(unitCounts, headers),
+    fetchAllPublicViewRows<RoommateCountRow>(roommateCounts, headers),
+  ]);
+  const bySlug = new Map<string, PublicAvailabilityStatus>();
+  for (const row of availabilityRows) bySlug.set(row.building_slug, row.availability_status);
   const rents = new Map<string, Partial<Record<0 | 1 | 2 | 3, number>>>();
-  if (rentResponse.ok) for (const row of await rentResponse.json() as RentRow[]) rents.set(row.building_slug, Object.fromEntries([[0,row.studio_min_rent],[1,row.one_bed_min_rent],[2,row.two_bed_min_rent],[3,row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number')));
+  for (const row of rentRows) rents.set(row.building_slug, Object.fromEntries([[0,row.studio_min_rent],[1,row.one_bed_min_rent],[2,row.two_bed_min_rent],[3,row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number')));
   const availableCounts = new Map<string, number>();
-  if (unitCountResponse.ok) for (const row of await unitCountResponse.json() as Array<{ building_slug: string; available_unit_count: number }>) availableCounts.set(row.building_slug, row.available_unit_count);
+  for (const row of unitCountRows) availableCounts.set(row.building_slug, row.available_unit_count);
   const interestCounts = new Map<string, number>();
-  if (roommateResponse.ok) for (const row of await roommateResponse.json() as Array<{ building_id: string; interested_count: number }>) interestCounts.set(row.building_id, row.interested_count);
+  for (const row of roommateRows) interestCounts.set(row.building_id, row.interested_count);
   const selectedBedrooms = bedrooms.filter((value) => ['0', '1', '2', '3', '4'].includes(value)).map(Number);
   const priceBounds = priceRanges.map((priceRange) => priceRange === '10000-plus' ? { min: 10000, max: Number.POSITIVE_INFINITY } : (() => { const match = /^(\d+)-(\d+)$/.exec(priceRange); return match ? { min: Number(match[1]), max: Number(match[2]) } : null; })()).filter((value): value is { min: number; max: number } => value != null);
   const rentFilteredBuildings = candidateBuildings.filter((building) => {
