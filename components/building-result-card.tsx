@@ -126,8 +126,6 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
   const compact = variant === 'map';
   const requestContext = new URLSearchParams({ buildingId: building.id, buildingSlug: building.slug, buildingName: building.name, neighborhood: building.neighborhood ?? building.borough ?? '', address: fullAddress }).toString();
   const savedAndCompared = favorited && compared;
-  const availableCount = inventory?.availableCount;
-  const availableUnitsLabel = availableCount != null && availableCount > 0 ? `${availableCount} available ${availableCount === 1 ? 'unit' : 'units'}` : 'Availability not verified';
   const availablePlans = BEDROOM_PRICE_LABELS.flatMap(([bedroom, label]) => {
     const price = inventory?.bedroomMinimums[bedroom];
     return price == null ? [] : [{ bedroom, label, price }];
@@ -144,7 +142,6 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
     startingPrice: selectedPlan ? String(selectedPlan.price) : '',
   }).toString();
   const hasMorePhotos = (building.gallery?.filter(Boolean).length ?? 0) > 1;
-  const unitCountLabel = (count: number | undefined) => count == null || count <= 0 ? null : count === 1 ? '1 unit' : count >= 10 ? '10+ units' : `${count} units`;
 
   if (!compact) {
     const amenitySummary = [
@@ -165,9 +162,9 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
 
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3.5">
           <div className="grid gap-1.5">
-            <div className="flex min-w-0 items-baseline gap-2"><h2 data-copyable className="min-w-0 cursor-text select-text truncate font-sans text-xl font-bold leading-6 text-navy transition group-hover:text-primary">{displayStreet}</h2><p className="shrink-0 truncate text-xs font-medium text-muted-foreground">{building.neighborhood ?? building.borough ?? 'New York metro'}</p><p className="ml-auto shrink-0 text-xs font-semibold text-black">{availableUnitsLabel}</p></div>
+            <div className="flex min-w-0 items-baseline gap-2"><h2 data-copyable className="min-w-0 cursor-text select-text truncate font-sans text-xl font-bold leading-6 text-navy transition group-hover:text-primary">{displayStreet}</h2><p className="shrink-0 truncate text-xs font-medium text-muted-foreground">{building.neighborhood ?? building.borough ?? 'New York metro'}</p></div>
             <div className="grid grid-cols-4 border-y border-border/70 py-2" aria-label="Starting base rents by apartment type">
-              {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; const countLabel = unitCountLabel(inventory?.bedroomAvailableCounts[bedroom]); return <div key={bedroom} className={cn('min-w-0 px-1 text-center', index > 0 && 'border-l border-border')}><p className="truncate text-xs font-semibold text-navy">{label}</p><p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">Starting from</p><p className={cn('truncate text-sm font-bold', minimum != null ? 'text-red-600' : 'text-muted-foreground')}>{minimum != null ? `$${formatCurrency(minimum)}` : '—'}</p>{countLabel && <p className="mt-0.5 truncate text-[9px] font-semibold text-black">{countLabel}</p>}</div>; })}
+              {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className={cn('min-w-0 px-1 text-center', index > 0 && 'border-l border-border')}><p className="truncate text-xs font-semibold text-navy">{label}</p><p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">Starting from</p><p className={cn('truncate text-sm font-bold', minimum != null ? 'text-red-600' : 'text-muted-foreground')}>{minimum != null ? `$${formatCurrency(minimum)}` : '—'}</p></div>; })}
             </div>
             <p className="truncate text-sm leading-5 text-muted-foreground">{amenitySummary.length > 0 ? amenitySummary.join('  ·  ') : 'Amenities unavailable'}</p>
             <p className="flex min-w-0 items-center gap-1.5 truncate text-xs leading-4 text-muted-foreground"><Train className="h-3.5 w-3.5 shrink-0 text-navy" /><span className="truncate"><SubwayWalkingSummary building={building} /></span></p>
@@ -199,9 +196,8 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
           {compact && <button type="button" className={cn('absolute top-5 z-20 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-2.5 text-[10px] font-semibold text-navy transition hover:bg-muted', onClose ? 'right-16' : 'right-4')} aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-6 w-6', savedAndCompared && 'fill-destructive text-destructive')} /><span className="whitespace-nowrap">Save &amp; Compare</span></button>}
           {onClose && <button type="button" className="absolute right-3 top-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-foreground shadow" aria-label={`Close ${building.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}><X className="h-5 w-5" /></button>}
 
-          <p className="mt-5 text-sm font-semibold text-black">{availableUnitsLabel}</p>
-          <div className="mt-3 grid grid-cols-4 border-y border-border/70 py-4" aria-label="Starting base rents by apartment type">
-            {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; const countLabel = unitCountLabel(inventory?.bedroomAvailableCounts[bedroom]); return <div key={bedroom} className={cn('min-w-0 px-2 text-center', index > 0 && 'border-l border-border')}><p className="whitespace-nowrap text-sm font-medium text-navy">{label}</p><p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Starting from</p><p className={cn('whitespace-nowrap font-semibold', minimum != null ? 'text-red-600' : 'text-muted-foreground', compact ? 'text-base' : 'text-xl')}>{minimum != null ? `$${formatCurrency(minimum)}` : '—'}</p>{countLabel && <p className="mt-1 whitespace-nowrap text-[11px] font-semibold text-black">{countLabel}</p>}</div>; })}
+          <div className="mt-5 grid grid-cols-4 border-y border-border/70 py-4" aria-label="Starting base rents by apartment type">
+            {BEDROOM_PRICE_LABELS.map(([bedroom, label], index) => { const minimum = inventory?.bedroomMinimums[bedroom]; return <div key={bedroom} className={cn('min-w-0 px-2 text-center', index > 0 && 'border-l border-border')}><p className="whitespace-nowrap text-sm font-medium text-navy">{label}</p><p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Starting from</p><p className={cn('whitespace-nowrap font-semibold', minimum != null ? 'text-red-600' : 'text-muted-foreground', compact ? 'text-base' : 'text-xl')}>{minimum != null ? `$${formatCurrency(minimum)}` : '—'}</p></div>; })}
           </div>
 
           <div className="grid gap-2 border-b border-border/70 py-3 text-sm text-muted-foreground sm:grid-cols-2">
