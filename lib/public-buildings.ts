@@ -58,14 +58,14 @@ export async function fetchPublicBuildingBySlug(slug: string): Promise<Building 
 
 export async function fetchPublicBuildingInventoryBySlug(slug: string): Promise<BuildingInventorySummary> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {}, availableCount: 0 };
+  if (!url || !anonKey) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {} };
   const endpoint = new URL('/rest/v1/public_building_rent_summary', url); endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('building_slug', `eq.${slug}`); endpoint.searchParams.set('limit', '1');
   const response = await fetch(endpoint, { cache: 'no-store', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
-  if (!response.ok) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {}, availableCount: 0 };
+  if (!response.ok) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {} };
   const [row] = await response.json() as Array<{ studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null }>;
-  if (!row) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {}, availableCount: 0 };
+  if (!row) return { availabilityStatus: 'unavailable', bedroomMinimums: {}, bedroomAvailableCounts: {} };
   const bedroomMinimums = Object.fromEntries([[0, row.studio_min_rent], [1, row.one_bed_min_rent], [2, row.two_bed_min_rent], [3, row.three_bed_min_rent]].filter((entry): entry is [number, number] => typeof entry[1] === 'number'));
-  return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums, bedroomAvailableCounts: {}, availableCount: 0 };
+  return { availabilityStatus: Object.keys(bedroomMinimums).length ? 'available' : 'unavailable', bedroomMinimums, bedroomAvailableCounts: {} };
 }
 
 export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs = [], neighborhoods = [], amenities = [], priceRanges = [], bedrooms = [] }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
@@ -123,7 +123,10 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     return true;
   });
   const buildings = hasRentFilters ? rentFilteredBuildings.slice((Math.max(1, page) - 1) * pageSize, Math.max(1, page) * pageSize) : candidateBuildings;
-  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, bedroomAvailableCounts: bedroomAvailableCounts.get(b.slug) ?? {}, availableCount: availableCounts.get(b.slug) ?? 0, roommateInterestCount: interestCounts.get(b.id) }]));
+  const inventoryByBuilding = Object.fromEntries(buildings.map((b) => {
+    const availableCount = availableCounts.get(b.slug);
+    return [b.id, { availabilityStatus: bySlug.get(b.slug) ?? 'unavailable', bedroomMinimums: rents.get(b.slug) ?? {}, bedroomAvailableCounts: bedroomAvailableCounts.get(b.slug) ?? {}, availableCount: availableCount != null && availableCount > 0 ? availableCount : undefined, roommateInterestCount: interestCounts.get(b.id) }];
+  }));
   const total = hasRentFilters ? rentFilteredBuildings.length : Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   return { buildings, total, inventoryByBuilding };
 }
