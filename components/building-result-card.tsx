@@ -18,7 +18,7 @@ const CORE_AMENITIES = [
 ] as const;
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.ceil(value / 50) * 50);
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value);
 }
 
 const NEW_YORK_UNIVERSITY = ['New York University', 40.7295, -73.9965] as const;

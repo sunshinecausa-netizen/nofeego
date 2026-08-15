@@ -72,7 +72,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) throw new Error('Public building data is not configured.');
   const endpoint = new URL('/rest/v1/public_buildings', url);
-  endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('state', 'in.(NY,NJ)'); endpoint.searchParams.set('order', 'name.asc');
+  endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('state', 'in.(NY,NJ)'); endpoint.searchParams.set('order', 'name.asc,id.asc');
   const hasRentFilters = priceRanges.length > 0 || bedrooms.length > 0;
   const term = search.trim().replace(/[,%()]/g, ' ').replace(/\s+/g, ' ').slice(0, 100);
   if (term) endpoint.searchParams.set('or', `(name.ilike.*${term}*,address.ilike.*${term}*,neighborhood.ilike.*${term}*,borough.ilike.*${term}*)`);
@@ -97,10 +97,10 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     unfilteredTotal = Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   }
   const candidateBuildings = candidateRows.map(publicBuilding);
-  const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*');
-  const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*');
-  const unitCounts = new URL('/rest/v1/public_building_unit_counts', url); unitCounts.searchParams.set('select', '*');
-  const roommateCounts = new URL('/rest/v1/public_roommate_interest_counts', url); roommateCounts.searchParams.set('select', '*');
+  const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*'); availability.searchParams.set('order', 'building_slug.asc');
+  const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*'); rentSummary.searchParams.set('order', 'building_slug.asc');
+  const unitCounts = new URL('/rest/v1/public_building_unit_counts', url); unitCounts.searchParams.set('select', '*'); unitCounts.searchParams.set('order', 'building_slug.asc');
+  const roommateCounts = new URL('/rest/v1/public_roommate_interest_counts', url); roommateCounts.searchParams.set('select', '*'); roommateCounts.searchParams.set('order', 'building_id.asc');
   type AvailabilityRow = { building_slug: string; availability_status: PublicAvailabilityStatus };
   type RentRow = { building_slug: string; studio_min_rent: number | null; one_bed_min_rent: number | null; two_bed_min_rent: number | null; three_bed_min_rent: number | null };
   type UnitCountRow = { building_slug: string; available_unit_count: number; studio_available_count: number; one_bed_available_count: number; two_bed_available_count: number; three_bed_available_count: number };
@@ -128,7 +128,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   const rentFilteredBuildings = candidateBuildings.filter((building) => {
     const minimums = rents.get(building.slug) ?? {};
     const values = selectedBedrooms.length === 0 ? Object.values(minimums) : selectedBedrooms.map((bedroom) => minimums[bedroom as 0 | 1 | 2 | 3]);
-    const knownRents = values.filter((value): value is number => typeof value === 'number').map((value) => Math.ceil(value / 50) * 50);
+    const knownRents = values.filter((value): value is number => typeof value === 'number');
     if (selectedBedrooms.length > 0 && knownRents.length === 0) return false;
     if (priceBounds.length > 0 && !knownRents.some((value) => priceBounds.some((range) => value >= range.min && value < range.max))) return false;
     return true;
