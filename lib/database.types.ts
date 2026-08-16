@@ -31,7 +31,7 @@ export interface Database {
       }, [{ foreignKeyName:'buildings_neighborhood_id_fkey'; columns:['neighborhood_id']; isOneToOne:false; referencedRelation:'neighborhoods'; referencedColumns:['id'] }]>;
       profiles: Table<{
         id: string; display_name: string | null; email: string | null; is_admin: boolean;
-        account_role: 'tenant' | 'admin'; created_at: string; updated_at: string;
+        account_role: 'tenant' | 'agent' | 'property' | 'admin'; authorization_status: 'active' | 'pending' | 'suspended'; created_at: string; updated_at: string;
       }>;
       listings: RelatedTable<{
         id: string; slug: string; title: string; building_id: string | null; neighborhood_id: string | null;
@@ -57,13 +57,42 @@ export interface Database {
       }>;
       rental_cases: Table<{
         id: string; inquiry_id: string; user_id: string; building_id: string; selected_floor_plan: string | null;
-        displayed_starting_rent: number | null; preferred_unit_type: string | null; status: 'Requested' | 'In Review' | 'Options Ready' | 'Closed';
-        created_at: string; updated_at: string;
+        displayed_starting_rent: number | null; preferred_unit_type: string | null;
+        status: 'submitted' | 'reviewed' | 'agent_assigned' | 'options_sent' | 'interested' | 'registered_with_property' | 'property_acknowledged' | 'tour_scheduled' | 'application_started' | 'application_submitted' | 'lease_signed' | 'closed_lost' | 'cancelled';
+        assigned_agent_id: string | null; property_organization_id: string | null; contact_share_consent: boolean;
+        closed_reason: string | null; lease_signed_at: string | null; closed_at: string | null; created_at: string; updated_at: string;
       }>;
       rental_case_options: Table<{
         id: string; rental_case_id: string; unit_number: string | null; current_rent: number | null; concession: string | null;
         available_date: string | null; floor_plan_url: string | null; authorized_photo_urls: string[]; tour_method: string | null;
         information_valid_until: string | null; notes: string | null; created_at: string; updated_at: string;
+      }>;
+      rental_case_recommendation_snapshots: Table<{
+        id: string; rental_case_id: string; agent_id: string; building_id: string; unit_id: string | null; unit_label: string | null;
+        gross_rent: number | null; net_effective_rent: number | null; available_date: string | null; lease_term_months: number | null;
+        concession: string | null; source_freshness: string | null; sent_at: string;
+      }>;
+      rental_case_status_history: Table<{
+        id: string; rental_case_id: string; from_status: string | null; to_status: string; actor_id: string | null;
+        actor_role: string; reason: string | null; created_at: string;
+      }>;
+      property_organizations: Table<{ id: string; name: string; created_at: string }>;
+      property_organization_members: Table<{ organization_id: string; profile_id: string; created_at: string }>;
+      property_building_access: Table<{ organization_id: string; building_id: string; granted_by: string; created_at: string }>;
+      rental_case_property_registrations: Table<{
+        id: string; rental_case_id: string; organization_id: string; building_id: string; recommendation_id: string | null;
+        status: 'pending' | 'acknowledged' | 'unavailable' | 'revoked'; inventory_available: boolean | null;
+        confirmed_gross_rent: number | null; confirmed_net_effective_rent: number | null; confirmed_available_date: string | null;
+        confirmed_concession: string | null; tour_instructions: string | null; application_url: string | null;
+        acknowledged_at: string | null; created_at: string; updated_at: string;
+      }>;
+      rental_case_property_invitations: Table<{
+        id: string; registration_id: string; email: string; token_hash: string; expires_at: string; revoked_at: string | null;
+        used_at: string | null; created_at: string;
+      }>;
+      rental_case_audit_logs: Table<{
+        id: string; rental_case_id: string | null; actor_id: string | null; actor_role: string; event_type: string;
+        metadata: Json; created_at: string;
       }>;
       roommate_profiles: Table<{
         user_id: string; bio: string | null; notification_method: 'email' | 'sms'; contact_email: string | null;
@@ -144,6 +173,18 @@ export interface Database {
     Functions: {
       submit_roommate_interest_mvp: { Args: { payload: Json }; Returns: Json };
       create_roommate_rental_lead: { Args: { target_interest_id: string }; Returns: string };
+      current_account_role: { Args: Record<string, never>; Returns: string };
+      upsert_own_profile: { Args: { p_display_name?: string | null }; Returns: Database['public']['Tables']['profiles']['Row'] };
+      admin_set_profile_authorization: { Args: { p_profile_id: string; p_role: string; p_status?: string }; Returns: Database['public']['Tables']['profiles']['Row'] };
+      admin_assign_rental_case: { Args: { p_case_id: string; p_agent_id: string }; Returns: Database['public']['Tables']['rental_cases']['Row'] };
+      transition_rental_case: { Args: { p_case_id: string; p_to_status: string; p_reason?: string | null }; Returns: Database['public']['Tables']['rental_cases']['Row'] };
+      agent_send_recommendation: { Args: { p_case_id: string; p_building_id: string; p_unit_id: string | null; p_unit_label: string | null; p_gross_rent: number | null; p_net_effective_rent: number | null; p_available_date: string | null; p_lease_term_months: number | null; p_concession: string | null; p_source_freshness: string | null }; Returns: Database['public']['Tables']['rental_case_recommendation_snapshots']['Row'] };
+      agent_register_with_property: { Args: { p_case_id: string; p_organization_id: string; p_building_id: string; p_recommendation_id: string | null }; Returns: Database['public']['Tables']['rental_case_property_registrations']['Row'] };
+      admin_grant_property_building_access: { Args: { p_organization_id: string; p_building_id: string }; Returns: Database['public']['Tables']['property_building_access']['Row'] };
+      agent_create_property_invitation: { Args: { p_registration_id: string; p_email: string; p_token_hash: string; p_expires_at: string }; Returns: Database['public']['Tables']['rental_case_property_invitations']['Row'] };
+      property_acknowledge_registration: { Args: { p_registration_id: string; p_available: boolean; p_gross_rent: number | null; p_net_effective_rent: number | null; p_available_date: string | null; p_concession: string | null; p_tour_instructions: string | null; p_application_url: string | null }; Returns: Database['public']['Tables']['rental_case_property_registrations']['Row'] };
+      consume_property_invitation: { Args: { p_token: string }; Returns: string };
+      create_rental_case_from_inquiry: { Args: { p_inquiry_id: string; p_building_id: string; p_selected_floor_plan: string; p_displayed_starting_rent: number | null; p_preferred_unit_type: string }; Returns: Database['public']['Tables']['rental_cases']['Row'] };
     };
     Enums: { partnership_status: PartnershipStatus; data_confidence: DataConfidence };
     CompositeTypes: Record<string, never>;

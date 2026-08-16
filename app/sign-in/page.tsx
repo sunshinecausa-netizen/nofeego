@@ -29,6 +29,8 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [nextPath, setNextPath] = useState('/dashboard');
 
   const returnPath = () => {
@@ -65,6 +67,16 @@ export default function SignInPage() {
       setError(error.message);
       setGoogleLoading(false);
     }
+  };
+
+  const handleMagicLink = async () => {
+    setError(null); setMagicLinkSent(false);
+    if (!email) { setError('Enter your email address first.'); return; }
+    setMagicLoading(true);
+    const next = returnPath();
+    const { error: magicError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` } });
+    setMagicLoading(false);
+    if (magicError) setError(magicError.message); else setMagicLinkSent(true);
   };
 
   return (
@@ -124,6 +136,10 @@ export default function SignInPage() {
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing in...</>) : ('Sign In')}
             </Button>
+            <Button type="button" variant="outline" className="w-full" size="lg" disabled={magicLoading} onClick={handleMagicLink}>
+              {magicLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</> : 'Email me a magic link'}
+            </Button>
+            {magicLinkSent && <p role="status" className="rounded-lg bg-success/15 p-3 text-sm">Check your email. The link returns to your original task and can only be used once.</p>}
           </form>
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}

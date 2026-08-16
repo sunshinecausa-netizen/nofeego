@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server';
+import { accountError, authenticateAccountRequest } from '@/lib/account/server';
+export async function POST(request:Request,{params}:{params:Promise<{token:string}>}){const auth=await authenticateAccountRequest(request);if(auth instanceof NextResponse)return auth;const {token}=await params;if(token.length<32||token.length>256)return accountError('INVALID_INVITATION','This invitation link is invalid.');const {data,error}=await auth.supabase.rpc('consume_property_invitation',{p_token:token});if(error||!data)return accountError('INVITATION_REJECTED','This invitation is expired, used, revoked, or belongs to another account.',403);return NextResponse.json({registrationId:data});}

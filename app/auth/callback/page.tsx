@@ -1,0 +1,5 @@
+'use client';
+import { useEffect,useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
+export default function AuthCallbackPage(){const router=useRouter();const [error,setError]=useState<string|null>(null);useEffect(()=>{const search=new URLSearchParams(window.location.search);const code=search.get('code');const candidate=search.get('next');const next=candidate?.startsWith('/')&&!candidate.startsWith('//')?candidate:'/dashboard';if(!code){queueMicrotask(()=>setError('The sign-in link is invalid or expired.'));return}supabase.auth.exchangeCodeForSession(code).then(({error:exchangeError})=>{if(exchangeError)setError('The sign-in link is invalid, expired, or already used.');else router.replace(next)})},[router]);return <main className="mx-auto max-w-lg p-8 text-center"><h1 className="text-2xl font-bold">Completing sign in</h1><p role={error?'alert':'status'} className="mt-3 text-muted-foreground">{error??'Please wait while we restore your original task.'}</p></main>}

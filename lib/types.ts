@@ -150,7 +150,8 @@ export type Profile = {
   display_name: string | null;
   email: string | null;
   is_admin: boolean;
-  account_role: 'tenant' | 'admin';
+  account_role: 'tenant' | 'agent' | 'property' | 'admin';
+  authorization_status: 'active' | 'pending' | 'suspended';
   created_at: string;
   updated_at: string;
 };

@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const { data, error } = await auth.supabase.from('inquiries').insert({ user_id: auth.user.id, building_id: input.buildingId, request_type: input.requestType, message: input.message || null, move_in_date: input.moveInDate ?? null, monthly_budget: input.monthlyBudget ?? null, contact_name: input.contactName, contact_email: input.contactEmail, contact_phone: input.contactPhone || null, bedrooms: input.bedrooms || null, roommate_preferences: input.roommatePreferences || null, status: 'Submitted' }).select('id, status, created_at').single();
   if (error) return accountError('INQUIRY_SAVE_FAILED', 'Unable to submit your request.', 500);
   if (input.requestType === 'entire_place') {
-    const { error: caseError } = await auth.supabase.from('rental_cases').upsert({ inquiry_id: data.id, user_id: auth.user.id, building_id: input.buildingId, selected_floor_plan: input.selectedFloorPlan || null, displayed_starting_rent: input.displayedStartingRent ?? null, preferred_unit_type: input.preferredUnitType || input.bedrooms || null, status: 'Requested' }, { onConflict: 'inquiry_id' });
+    const { error: caseError } = await auth.supabase.rpc('create_rental_case_from_inquiry', { p_inquiry_id: data.id, p_building_id: input.buildingId, p_selected_floor_plan: input.selectedFloorPlan, p_displayed_starting_rent: input.displayedStartingRent ?? null, p_preferred_unit_type: input.preferredUnitType || input.bedrooms });
     if (caseError) return accountError('RENTAL_CASE_SAVE_FAILED', 'Your request was saved, but its Rental Case could not be created.', 500);
   }
   return NextResponse.json({ item: data }, { status: 201 });
