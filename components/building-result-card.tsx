@@ -115,9 +115,10 @@ type Props = {
   onHover?: (id: string | null) => void;
   onSelect?: (id: string) => void;
   onClose?: () => void;
+  autoLoadStreetView?: boolean;
 };
 
-export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect, onClose }: Props) {
+export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect, onClose, autoLoadStreetView = false }: Props) {
   const heroImage = building.hero_image_url ?? building.hero_image;
   const amenities = new Set(building.amenities ?? []);
   const fullAddress = [building.address, building.city, building.state, building.zip_code].filter(Boolean).join(', ');
@@ -155,7 +156,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
     return (
       <article data-building-id={building.id} data-card-variant="list" className={cn('group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-primary/40 hover:-translate-y-0.5 hover:shadow-md lg:h-[540px]', highlighted && 'border-2 border-red-500 ring-2 ring-red-200 shadow-[0_12px_30px_rgba(220,38,38,0.2)] hover:border-red-500')} onMouseEnter={() => onHover?.(building.id)} onMouseLeave={() => onHover?.(null)} onClickCapture={(event) => { const target = event.target as HTMLElement; if (target.closest('button, a')) return; onSelect?.(building.id); }}>
         <div className="relative aspect-[1.55/1] shrink-0 overflow-hidden bg-muted lg:aspect-auto lg:h-[52%]">
-          <StreetViewStaticPreview buildingId={building.id} buildingName={displayStreet} latitude={building.latitude} longitude={building.longitude} snapshotUrl={heroImage} className="transition-transform duration-300 group-hover:scale-[1.02]" />
+          <StreetViewStaticPreview buildingId={building.id} buildingName={displayStreet} latitude={building.latitude} longitude={building.longitude} snapshotUrl={heroImage} autoLoadStreetView={autoLoadStreetView} className="transition-transform duration-300 group-hover:scale-[1.02]" />
           <Link href={hasMorePhotos ? `/buildings/${building.slug}` : `/rent-request?${currentOptionsContext}`} onClick={(event) => event.stopPropagation()} className="absolute bottom-4 left-4 z-20 max-w-[calc(100%-2rem)] truncate rounded-md bg-primary px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-primary-foreground shadow-sm hover:bg-primary-hover">View Photos</Link>
           <button type="button" className="absolute right-4 top-4 z-20 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-white/95 px-2.5 text-[10px] font-semibold text-navy shadow-md backdrop-blur transition hover:bg-white" aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-5 w-5 shrink-0', savedAndCompared && 'fill-destructive text-destructive')} /><span className="whitespace-nowrap">Save &amp; Compare</span></button>
         </div>

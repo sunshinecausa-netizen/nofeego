@@ -44,7 +44,7 @@ function publish(key: string, status: SharedStatus) {
 
 function streetViewUrl(latitude: number, longitude: number) {
   const params = new URLSearchParams({
-    size: '900x580',
+    size: '480x310',
     location: `${latitude},${longitude}`,
     radius: '150',
     source: 'outdoor',
@@ -60,10 +60,11 @@ type Props = {
   latitude: number | null;
   longitude: number | null;
   snapshotUrl?: string | null;
+  autoLoadStreetView?: boolean;
   className?: string;
 };
 
-export function StreetViewStaticPreview({ buildingId, buildingName, latitude, longitude, snapshotUrl, className }: Props) {
+export function StreetViewStaticPreview({ buildingId, buildingName, latitude, longitude, snapshotUrl, autoLoadStreetView = false, className }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<HTMLDivElement>(null);
   const cacheKey = latitude != null && longitude != null ? `${latitude.toFixed(6)},${longitude.toFixed(6)}` : buildingId;
@@ -72,7 +73,7 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
   const [status, setStatus] = useState<SharedStatus>(() => sessionStatus.get(cacheKey) ?? 'idle');
   const [interactiveOpen, setInteractiveOpen] = useState(false);
   const [interactiveError, setInteractiveError] = useState(false);
-  const canRequestStreetView = visible && GOOGLE_MAPS_API_KEY && latitude != null && longitude != null && ((requestOwner && status !== 'failed') || status === 'ready');
+  const canRequestStreetView = autoLoadStreetView && visible && GOOGLE_MAPS_API_KEY && latitude != null && longitude != null && ((requestOwner && status !== 'failed') || status === 'ready');
 
   useEffect(() => {
     const element = containerRef.current;
@@ -85,17 +86,17 @@ export function StreetViewStaticPreview({ buildingId, buildingName, latitude, lo
       if (!entry.isIntersecting) return;
       setVisible(true);
       observer.disconnect();
-    }, { root: null, rootMargin: '0px', threshold: 0.01 });
+    }, { root: null, rootMargin: '800px 0px', threshold: 0.01 });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!visible || !GOOGLE_MAPS_API_KEY || latitude == null || longitude == null) return;
+    if (!autoLoadStreetView || !visible || !GOOGLE_MAPS_API_KEY || latitude == null || longitude == null) return;
     if ((sessionStatus.get(cacheKey) ?? 'idle') !== 'idle') return;
     publish(cacheKey, 'loading');
     queueMicrotask(() => setRequestOwner(true));
-  }, [cacheKey, latitude, longitude, visible]);
+  }, [autoLoadStreetView, cacheKey, latitude, longitude, visible]);
 
   useEffect(() => {
     const listeners = statusListeners.get(cacheKey) ?? new Set<(next: SharedStatus) => void>();

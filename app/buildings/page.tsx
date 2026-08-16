@@ -1,7 +1,7 @@
 import { BuildingBrowser } from '@/components/building-browser';
 import { fetchBuildingsPage, type BuildingsPageResult } from '@/lib/public-buildings';
 
-const PAGE_SIZE = 500;
+const PAGE_SIZE = 48;
 
 type BuildingsSearchParams = {
   page?: string;
@@ -36,7 +36,7 @@ export default async function BuildingsPage({ searchParams }: { searchParams: Pr
   let result: BuildingsPageResult = { buildings: [], total: 0, inventoryByBuilding: {} };
   let error: string | null = null;
   try {
-    result = await fetchBuildingsPage({ page, pageSize: PAGE_SIZE, mapOnly: true, ...filters });
+    result = await fetchBuildingsPage({ page, pageSize: PAGE_SIZE, ...filters });
   } catch {
     error = 'Unable to load buildings.';
   }

@@ -27,7 +27,8 @@ export type BuildingMapItem = {
 };
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
-const NYC_CENTER = { lat: 40.7306, lng: -73.9352 };
+const MIDTOWN_CENTER = { lat: 40.7549, lng: -73.9840 };
+export type MapViewport = { north: number; south: number; east: number; west: number; zoom: number };
 function publicStreetName(address?: string | null) {
   if (!address) return 'Available building';
   return address.replace(/^\s*\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?\s+/, '').replace(/(?:,|\s)+(?:Apt|Apartment|Unit|Suite|Bldg|Building|Floor|#)\s*.*$/i, '').trim() || 'Available building';
@@ -40,7 +41,7 @@ function MapResultCount({ buildingCount, locationCount }: { buildingCount: numbe
   );
 }
 
-type BuildingMapProps = {
+export type BuildingMapProps = {
   buildings: BuildingMapItem[];
   selectedBedrooms?: string[];
   hoveredBuildingId?: string | null;
@@ -51,6 +52,7 @@ type BuildingMapProps = {
   onBuildingSelect?: (id: string) => void;
   onBuildingClose?: () => void;
   onBuildingHover?: (id: string | null) => void;
+  onViewportChange?: (viewport: MapViewport) => void;
   onAreaSelect?: (ids: string[]) => void;
   onCompareChange?: (building: Building, checked: boolean) => void;
   onFavoriteChange?: (building: Building, checked: boolean) => void;
@@ -95,7 +97,7 @@ function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: nu
   return inside;
 }
 
-export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingClose, onBuildingHover, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
+export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingId = null, selectedBuildingId = null, selectionRequestKey = 0, comparedBuildingIds = [], favoriteBuildingIds = [], onBuildingSelect, onBuildingClose, onBuildingHover, onViewportChange, onAreaSelect, onCompareChange, onFavoriteChange, className }: BuildingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -105,6 +107,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const drawingModeRef = useRef(false);
   const pinnedPreviewIdRef = useRef<string | null>(null);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
+  const lastCameraRef = useRef<{ center: google.maps.LatLngLiteral; zoom: number } | null>(null);
+  const suppressViewportUntilRef = useRef(0);
   const previewOpenersRef = useRef(new Map<string, () => void>());
   const streetViewVisibilityListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const previewOptionsRef = useRef({ comparedBuildingIds, favoriteBuildingIds, onCompareChange, onFavoriteChange, onBuildingClose });
@@ -169,8 +173,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   useEffect(() => {
     if (!scriptLoaded || !mapRef.current) return;
     const map = new google.maps.Map(mapRef.current, {
-      center: NYC_CENTER,
-      zoom: 11,
+      center: lastCameraRef.current?.center ?? MIDTOWN_CENTER,
+      zoom: lastCameraRef.current?.zoom ?? 14,
       mapTypeControl: false,
       streetViewControl: true,
       streetViewControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
@@ -202,6 +206,17 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       previewTimer = null;
     };
     googleMapRef.current = map;
+    const idleListener = map.addListener('idle', () => {
+      const visibleBounds = map.getBounds();
+      const center = map.getCenter();
+      if (!visibleBounds || !center) return;
+      const northEast = visibleBounds.getNorthEast();
+      const southWest = visibleBounds.getSouthWest();
+      const zoom = map.getZoom() ?? 14;
+      lastCameraRef.current = { center: center.toJSON(), zoom };
+      if (performance.now() < suppressViewportUntilRef.current) return;
+      onViewportChange?.({ north: northEast.lat(), east: northEast.lng(), south: southWest.lat(), west: southWest.lng(), zoom });
+    });
     const projectionOverlay = new google.maps.OverlayView();
     projectionOverlay.onAdd = () => undefined;
     projectionOverlay.draw = () => undefined;
@@ -259,7 +274,10 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
             const previewBounds = content.getBoundingClientRect();
             const horizontalOffset = previewBounds.left + previewBounds.width / 2 - (mapBounds.left + mapBounds.width / 2);
             const verticalOffset = previewBounds.top + previewBounds.height / 2 - (mapBounds.top + mapBounds.height / 2);
-            if (Math.abs(horizontalOffset) > 4 || Math.abs(verticalOffset) > 4) map.panBy(horizontalOffset, verticalOffset);
+            if (Math.abs(horizontalOffset) > 4 || Math.abs(verticalOffset) > 4) {
+              suppressViewportUntilRef.current = performance.now() + 1200;
+              map.panBy(horizontalOffset, verticalOffset);
+            }
           });
         });
         infoWindow.open({ map, shouldFocus: false });
@@ -273,6 +291,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
           openPreview(focusedBuildingId);
         };
         google.maps.event.addListenerOnce(map, 'idle', openOnce);
+        suppressViewportUntilRef.current = performance.now() + 1200;
         if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
         map.panTo(position);
         window.setTimeout(openOnce, 600);
@@ -320,8 +339,8 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         }),
       },
     });
-    if (validBuildings.length > 1) map.fitBounds(bounds, 56);
-    else if (validBuildings.length === 1) {
+    if (validBuildings.length === 1) {
+      suppressViewportUntilRef.current = performance.now() + 1200;
       map.setCenter({ lat: validBuildings[0].latitude!, lng: validBuildings[0].longitude! });
       map.setZoom(15);
     }
@@ -331,6 +350,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       previewRoot = null;
       cancelClose();
       cancelPreview();
+      idleListener.remove();
       projectionOverlay.setMap(null);
       streetViewVisibilityListenerRef.current?.remove();
       streetViewVisibilityListenerRef.current = null;
@@ -345,7 +365,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       markerClusterer.clearMarkers();
       markers.forEach((marker) => marker.setMap(null));
     };
-  }, [scriptLoaded, locationGroups, markerPositions, onBuildingHover, onBuildingSelect, selectedBedrooms, validBuildings]);
+  }, [scriptLoaded, locationGroups, markerPositions, onBuildingHover, onBuildingSelect, onViewportChange, selectedBedrooms, validBuildings]);
 
   useEffect(() => {
     googleMapRef.current?.setMapTypeId(mapTypeId);
@@ -448,6 +468,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     const building = validBuildings.find((item) => item.id === selectedBuildingId);
     const map = googleMapRef.current;
     if (!building || !map) return;
+    suppressViewportUntilRef.current = performance.now() + 1200;
     map.panTo({ lat: building.latitude!, lng: building.longitude! });
     if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
     const openPreview = previewOpenersRef.current.get(selectedBuildingId);
@@ -472,8 +493,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         : validBuildings.find((building) => markersRef.current.get(building.id) === marker);
       if (item) marker.setIcon(priceMarkerIcon(priceLabels(item, selectedBedrooms), markerColor, selected));
       marker.setZIndex(selected ? 2000 : active ? 1000 : undefined);
-      marker.setAnimation(selected ? google.maps.Animation.BOUNCE : null);
-      if (selected) window.setTimeout(() => marker.setAnimation(null), 900);
+      marker.setAnimation(null);
     });
   }, [hoveredBuildingId, selectedBuildingId, selectedBedrooms, validBuildings]);
 

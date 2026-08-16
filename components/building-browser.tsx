@@ -1,13 +1,14 @@
 'use client';
 
-import { FormEvent, useCallback, useMemo, useState } from 'react';
+import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { BuildingMap } from '@/components/building-map';
+import type { MapViewport } from '@/components/building-map';
+import { DeferredBuildingMap } from '@/components/deferred-building-map';
 import { BuildingCard } from '@/components/building-result-card';
 import { Footer } from '@/components/footer';
 import type { Building } from '@/lib/types';
@@ -17,6 +18,8 @@ import { useLocale } from '@/components/locale-provider';
 import { AISearchInput } from '@/components/ai-search-input';
 
 const PAGE_SIZE = 24;
+const CARD_BATCH_SIZE = 12;
+const CARD_PREFETCH_MARGIN = '800px 0px';
 
 type NeighborhoodOption = readonly [value: string, label: string];
 const neighborhoodOptions = (items: ReadonlyArray<string>): NeighborhoodOption[] => items.map((item) => [item, item]);
@@ -75,9 +78,17 @@ const COMPARE_AMENITIES = [
   ['Pool', ['Pool', 'Indoor Pool', 'Outdoor Pool']],
 ] as const;
 
-function MultiSelectMenu({ label, options, selected, onToggle, alignRight = false, fitOptions = false, truncateLabel = false }: { label: string; options: ReadonlyArray<readonly [string, string]>; selected: string[]; onToggle: (value: string, checked: boolean) => void; alignRight?: boolean; fitOptions?: boolean; truncateLabel?: boolean }) {
+function closeDetailsAfterPointerLeaves(event: ReactMouseEvent<HTMLDetailsElement>) {
+  if (window.innerWidth < 768) return;
+  const details = event.currentTarget;
+  window.setTimeout(() => {
+    if (!details.matches(':hover')) details.removeAttribute('open');
+  }, 180);
+}
+
+function MultiSelectMenu({ label, options, selected, onToggle, alignRight = false, truncateLabel = false }: { label: string; options: ReadonlyArray<readonly [string, string]>; selected: string[]; onToggle: (value: string, checked: boolean) => void; alignRight?: boolean; truncateLabel?: boolean }) {
   const displayLabel = `${label}${selected.length > 0 ? ` (${selected.length})` : ''}`;
-  return <details className={`group relative ${truncateLabel ? 'min-w-[92px] max-w-[138px] flex-[1_1_118px]' : 'w-auto shrink-0'}`}><summary className={`flex h-10 cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm ${truncateLabel ? 'min-w-0' : 'min-w-max'}`}><span className={truncateLabel ? 'min-w-0 truncate' : 'whitespace-nowrap'} title={displayLabel}>{displayLabel}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary><div className={`mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-white p-2 shadow-xl sm:absolute sm:top-10 sm:z-50 ${fitOptions ? 'w-max max-w-[calc(100vw-2rem)]' : 'min-w-56'} ${alignRight ? 'sm:right-0' : 'sm:left-0'}`}>{options.map(([value, optionLabel]) => <label key={value} className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60 ${fitOptions ? 'whitespace-nowrap' : ''}`}><Checkbox checked={selected.includes(value)} onCheckedChange={(checked) => onToggle(value, checked === true)} />{optionLabel}</label>)}</div></details>;
+  return <details onMouseLeave={closeDetailsAfterPointerLeaves} className={`group relative ${truncateLabel ? 'min-w-[92px] max-w-[138px] flex-[1_1_118px]' : 'w-auto shrink-0'}`}><summary className={`flex h-10 cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm ${truncateLabel ? 'min-w-0' : 'min-w-max'}`}><span className={truncateLabel ? 'min-w-0 truncate' : 'whitespace-nowrap'} title={displayLabel}>{displayLabel}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary><div className={`flex max-h-64 w-max min-w-56 max-w-[calc(100vw-2rem)] flex-col overflow-x-auto overflow-y-auto rounded-lg border border-border bg-white p-2 shadow-xl sm:absolute sm:top-10 sm:z-50 ${alignRight ? 'sm:right-0' : 'sm:left-0'}`}>{options.map(([value, optionLabel]) => <label key={value} className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm hover:bg-muted/60"><Checkbox checked={selected.includes(value)} onCheckedChange={(checked) => onToggle(value, checked === true)} />{optionLabel}</label>)}</div></details>;
 }
 
 function formatStartingRent(value: number | undefined, hasStreetEasyRentData: boolean) {
@@ -93,10 +104,10 @@ type Props = {
   mode: 'buildings' | 'search';
 };
 
-export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters, initialResult: result, initialError = null, mode }: Props) {
+export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters, initialResult, initialError = null, mode }: Props) {
   const locale = useLocale();
   const { favoriteIds: favoriteBuildingIds, compareIds, toggleFavorite: updateFavorite, toggleCompare: updateCompare, replaceCompare, clearCompare, error: accountError } = useTenantData();
-  const starting = {
+  const starting = useMemo(() => ({
     search: initialFilters?.search ?? initialQuery,
     boroughs: initialFilters?.boroughs ?? [],
     neighborhoods: initialFilters?.neighborhoods ?? [],
@@ -106,7 +117,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     bathrooms: initialFilters?.bathrooms ?? [],
     moveInDate: initialFilters?.moveInDate ?? '',
     moveInFlex: initialFilters?.moveInFlex ?? [],
-  };
+  }), [initialFilters, initialQuery]);
   const [query, setQuery] = useState(starting.search);
   const [boroughs, setBoroughs] = useState<string[]>(starting.boroughs);
   const [neighborhoods, setNeighborhoods] = useState<string[]>(starting.neighborhoods);
@@ -116,7 +127,14 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const [bathrooms, setBathrooms] = useState<string[]>(starting.bathrooms);
   const [moveInDate, setMoveInDate] = useState(starting.moveInDate);
   const [moveInFlex, setMoveInFlex] = useState<string[]>(starting.moveInFlex);
-  const [mobileView, setMobileView] = useState<'list' | 'map'>('map');
+  const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  const [result, setResult] = useState(initialResult);
+  const [visibleCardCount, setVisibleCardCount] = useState(12);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportRequestRef = useRef<AbortController | null>(null);
+  const viewportSequenceRef = useRef(0);
+  const lastViewportRequestRef = useRef<string | null>(null);
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [selectionRequestKey, setSelectionRequestKey] = useState(0);
@@ -129,6 +147,59 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const pageCount = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
   const activeFilterCount = [query, moveInFlex.some((value) => DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) ? moveInDate : ''].filter(Boolean).length + priceRanges.length + bedrooms.length + bathrooms.length + moveInFlex.length + boroughs.length + neighborhoods.length + amenities.length;
   const comparedBuildings = useMemo(() => result.buildings.filter((building) => compareIds.includes(building.id)), [compareIds, result.buildings]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target) return;
+    const scrollRoot = target.closest<HTMLElement>('[data-results-scroll-root]');
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setVisibleCardCount((count) => Math.min(count + CARD_BATCH_SIZE, result.buildings.length));
+    }, { root: scrollRoot, rootMargin: CARD_PREFETCH_MARGIN });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [result.buildings.length, visibleCardCount]);
+
+  const updateViewport = useCallback((viewport: MapViewport) => {
+    if (mode !== 'buildings') return;
+    if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+    viewportTimerRef.current = setTimeout(async () => {
+      const viewportKey = [viewport.north, viewport.south, viewport.east, viewport.west]
+        .map((value) => value.toFixed(5))
+        .join(':');
+      if (lastViewportRequestRef.current === viewportKey) return;
+      lastViewportRequestRef.current = viewportKey;
+      viewportRequestRef.current?.abort();
+      const controller = new AbortController();
+      viewportRequestRef.current = controller;
+      const sequence = ++viewportSequenceRef.current;
+      const params = new URLSearchParams({ north: String(viewport.north), south: String(viewport.south), east: String(viewport.east), west: String(viewport.west), pageSize: '60' });
+      if (starting.search.trim()) params.set('q', starting.search.trim());
+      starting.boroughs.forEach((value) => params.append('borough', value));
+      starting.neighborhoods.forEach((value) => params.append('neighborhood', value));
+      starting.amenities.forEach((value) => params.append('amenity', value));
+      if (starting.priceRanges[0]) params.set('price', starting.priceRanges[0]);
+      if (starting.bedrooms[0]) params.set('bedrooms', starting.bedrooms[0]);
+      if (starting.bathrooms[0]) params.set('bathrooms', starting.bathrooms[0]);
+      if (starting.moveInDate) params.set('moveInDate', starting.moveInDate);
+      if (starting.moveInFlex[0]) params.set('moveInFlex', starting.moveInFlex[0]);
+      try {
+        const response = await fetch(`/api/v1/buildings?${params}`, { signal: controller.signal });
+        if (!response.ok) return;
+        const nextResult = await response.json() as BuildingsPageResult;
+        if (sequence === viewportSequenceRef.current) {
+          setResult((current) => JSON.stringify(current) === JSON.stringify(nextResult) ? current : nextResult);
+        }
+      } catch (error) {
+        if (lastViewportRequestRef.current === viewportKey) lastViewportRequestRef.current = null;
+        if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Viewport building request failed');
+      }
+    }, 300);
+  }, [mode, starting.amenities, starting.bathrooms, starting.bedrooms, starting.boroughs, starting.moveInDate, starting.moveInFlex, starting.neighborhoods, starting.priceRanges, starting.search]);
+
+  useEffect(() => () => {
+    if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+    viewportRequestRef.current?.abort();
+  }, []);
 
   function href(page: number, values: BuildingFilters = starting) {
     const params = new URLSearchParams();
@@ -250,13 +321,13 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <MultiSelectMenu label="Price" options={PRICE_RANGES} selected={priceRanges} onToggle={(value, checked) => toggleValue(setPriceRanges, value, checked)} />
           <MultiSelectMenu label="Beds" options={BEDROOM_OPTIONS} selected={bedrooms} onToggle={(value, checked) => toggleValue(setBedrooms, value, checked)} />
           <MultiSelectMenu label="Bath" options={BATHROOM_OPTIONS} selected={bathrooms} onToggle={(value, checked) => toggleValue(setBathrooms, value, checked)} />
-          <MultiSelectMenu label={locale === 'zh-Hans' ? '入住日期' : 'Move-in Date'} options={MOVE_IN_OPTIONS} selected={moveInFlex} onToggle={(value, checked) => toggleValue(setMoveInFlex, value, checked)} alignRight fitOptions truncateLabel />
-          <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative min-w-[108px] max-w-[180px] flex-[1.25_1_148px]">
+          <MultiSelectMenu label={locale === 'zh-Hans' ? '入住日期' : 'Move-in Date'} options={MOVE_IN_OPTIONS} selected={moveInFlex} onToggle={(value, checked) => toggleValue(setMoveInFlex, value, checked)} alignRight truncateLabel />
+          <details onMouseLeave={closeDetailsAfterPointerLeaves} className="group relative min-w-[108px] max-w-[180px] flex-[1.25_1_148px]">
             <summary className="flex h-10 min-w-0 cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm"><span className="min-w-0 truncate" title={locale === 'zh-Hans' ? '行政区与社区' : 'Borough & Neighborhood'}>{locale === 'zh-Hans' ? '行政区与社区' : 'Borough & Neighborhood'}{boroughs.length + neighborhoods.length > 0 ? ` (${boroughs.length + neighborhoods.length})` : ''}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary>
             <div className="mt-2 grid overflow-hidden rounded-xl border border-border bg-white shadow-xl md:fixed md:left-1/2 md:z-50 md:mt-0 md:w-[min(92vw,720px)] md:-translate-x-1/2 md:grid-cols-[180px_1fr]"><div className="border-b p-2 md:border-b-0 md:border-r">{BOROUGHS.map((borough) => <label key={borough} onMouseEnter={() => setHoveredBorough(borough)} onFocus={() => setHoveredBorough(borough)} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-sm ${hoveredBorough === borough ? 'bg-muted' : 'hover:bg-muted/60'}`}><Checkbox checked={boroughs.includes(borough)} onCheckedChange={(checked) => toggleBorough(borough, checked === true)} />{borough}</label>)}</div><div className="max-h-72 overflow-y-auto p-3">{NEIGHBORHOOD_GROUPS.filter((group) => group.borough === hoveredBorough).map((group) => { const selectedCount = group.options.filter(([value]) => neighborhoods.includes(value)).length; return <section key={group.title} className="mb-3"><label className="mb-1 flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-xs font-bold uppercase tracking-wide text-primary hover:bg-muted/60"><Checkbox className="rounded-none" checked={selectedCount === group.options.length ? true : selectedCount > 0 ? 'indeterminate' : false} onCheckedChange={(checked) => toggleNeighborhoodGroup(group.options, checked === true)} />All {group.title}</label>{group.options.map(([value, label]) => <label key={value} className="ml-6 flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm hover:bg-muted/60"><Checkbox checked={neighborhoods.includes(value)} onCheckedChange={(checked) => toggleNeighborhood(value, checked === true)} />{label}</label>)}</section>; })}</div></div>
           </details>
         <div className="contents">
-        <details onMouseLeave={(event) => { if (window.innerWidth >= 768) event.currentTarget.removeAttribute('open'); }} className="group relative">
+        <details onMouseLeave={closeDetailsAfterPointerLeaves} className="group relative">
           <summary className="flex h-10 cursor-pointer list-none items-center justify-start gap-1.5 rounded-md border border-input bg-background px-3 text-left text-sm font-normal leading-tight text-foreground"><SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" /><span>Filters</span>{activeFilterCount > 0 && <Badge variant="secondary" className="px-1">{activeFilterCount}</Badge>}<ChevronDown className="ml-auto h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary>
           <div className="mt-2 max-h-[70vh] w-full space-y-4 overflow-y-auto rounded-xl border border-border bg-white p-4 shadow-xl md:fixed md:left-1/2 md:right-auto md:top-auto md:z-40 md:mt-0 md:w-[min(92vw,820px)] md:-translate-x-1/2">
           {moveInFlex.some((value) => DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) && <div className="max-w-52"><label htmlFor="move-in-date" className="mb-1 block text-xs text-muted-foreground">Move-in date</label><Input id="move-in-date" type="date" value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} /></div>}
@@ -274,7 +345,8 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     </form>
   );
 
-  const resultCards = result.buildings.map((building) => (
+  const visibleBuildings = mode === 'buildings' ? result.buildings.slice(0, visibleCardCount) : result.buildings;
+  const resultCards = visibleBuildings.map((building) => (
     <BuildingCard
       key={building.id}
       building={building}
@@ -286,15 +358,12 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       onFavoriteChange={toggleFavorite}
       onHover={setHoveredBuildingId}
       onSelect={focusBuildingFromCard}
+      autoLoadStreetView
     />
   ));
 
   const mapItems = useMemo(() => {
-    const hasActiveLocationOrSearchFilter = Boolean(starting.search?.trim()) || starting.boroughs.length > 0 || starting.neighborhoods.length > 0;
-    const mapBuildings = mode === 'buildings' && !hasActiveLocationOrSearchFilter
-      ? result.buildings.filter((building) => building.id === selectedBuildingId || (building.latitude != null && building.longitude != null && building.latitude >= 40.742 && building.latitude <= 40.775 && building.longitude >= -74.01 && building.longitude <= -73.945))
-      : result.buildings;
-    return mapBuildings.map((building) => ({
+    return result.buildings.map((building) => ({
     id: building.id,
     slug: building.slug,
     name: building.name,
@@ -310,7 +379,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     latitude: building.latitude,
     longitude: building.longitude,
     }));
-  }, [mode, result.buildings, result.inventoryByBuilding, selectedBuildingId, starting.boroughs.length, starting.neighborhoods.length, starting.search]);
+  }, [result.buildings, result.inventoryByBuilding]);
 
   if (error) return <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center" role="alert"><AlertCircle className="mb-3 h-10 w-10 text-destructive" /><h1 className="mb-1 text-xl font-semibold">We couldn&apos;t load the buildings</h1><p className="mb-4 text-sm text-muted-foreground">{error}</p><Button type="button" onClick={() => window.location.reload()}>Try again</Button></div>;
   if (result.buildings.length === 0) return <><div className="px-3 pt-4 sm:px-5"><h1 className="font-serif text-2xl font-bold">Buildings</h1></div>{compactFilters}<div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center"><Building2 className="mb-3 h-10 w-10 text-muted-foreground" /><h2 className="mb-1 text-lg font-semibold">No buildings found</h2><p className="mb-4 text-sm text-muted-foreground">Try adjusting or clearing one or more filters.</p><Button asChild variant="outline"><Link href={route}>View all buildings</Link></Button></div></>;
@@ -331,10 +400,10 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <section className={`${mobileView === 'list' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-border bg-muted/25 md:flex`} aria-label="Building results list">
           <div className="shrink-0">{compactFilters}</div>
           <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2 sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>
-          <div className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{resultCards}</div><Footer embedded /></div>
+          <div data-results-scroll-root className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{resultCards}</div><div ref={loadMoreRef} className="h-px" aria-hidden="true" /><Footer embedded /></div>
         </section>
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
-          <BuildingMap buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingClose={() => setSelectedBuildingId(null)} onBuildingHover={setHoveredBuildingId} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
+          <DeferredBuildingMap enabled={mobileView === 'map'} buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingClose={() => setSelectedBuildingId(null)} onBuildingHover={setHoveredBuildingId} onViewportChange={updateViewport} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
         </section>
       </div>
       {compareIds.length > 0 && <>

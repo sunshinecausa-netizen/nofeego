@@ -1,5 +1,11 @@
 # Automation Scripts
 
+## Production preflight
+
+`pnpm deploy:preflight` 只读检查当前来源是否为 clean、同步的 `origin/main`，并验证批准的 Vercel project/org、Preview 验收证据、migration 与环境变量边界。它不会部署，PASS 也不代表已获得 Production 授权。
+
+`pnpm test:deploy-preflight` 运行跨平台规则测试。
+
 | Version | Date | Status |
 | --- | --- | --- |
 | 1.0.0 | 2026-07-31 | Planned |

@@ -13,7 +13,9 @@
     "extract:building": "tsx scripts/street-easy-import/cli.ts",
     "test:extractor": "tsx --test scripts/street-easy-import/*.test.ts",
     "test:roommate": "tsx --test lib/roommate/*.test.ts",
-    "verify:roommate-rls": "tsx scripts/verify-roommate-rls.ts"
+    "verify:roommate-rls": "tsx scripts/verify-roommate-rls.ts",
+    "deploy:preflight": "node scripts/production-deploy-preflight.mjs --target=production",
+    "test:deploy-preflight": "node --test scripts/production-deploy-preflight.test.mjs"
   },
   "dependencies": {
     "@googlemaps/markerclusterer": "2.5.3",
