@@ -2,7 +2,7 @@
 
 import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, X } from 'lucide-react';
+import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,6 +16,7 @@ import type { BuildingFilters, BuildingsPageResult } from '@/lib/public-building
 import { useTenantData } from '@/lib/account/tenant-data-context';
 import { useLocale } from '@/components/locale-provider';
 import { AISearchInput } from '@/components/ai-search-input';
+import { BuildingBrowseFrame } from '@/components/building-browse-frame';
 
 const PAGE_SIZE = 24;
 const CARD_BATCH_SIZE = 12;
@@ -23,7 +24,7 @@ const CARD_PREFETCH_MARGIN = '800px 0px';
 
 type NeighborhoodOption = readonly [value: string, label: string];
 const neighborhoodOptions = (items: ReadonlyArray<string>): NeighborhoodOption[] => items.map((item) => [item, item]);
-const BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'] as const;
+export const BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'] as const;
 const NEIGHBORHOOD_GROUPS: ReadonlyArray<{ borough: string; title: string; options: ReadonlyArray<NeighborhoodOption> }> = [
   { borough: 'Manhattan', title: 'Downtown', options: [...neighborhoodOptions(['Battery Park City', 'Chelsea', 'Chinatown', 'Civic Center', 'East Village', 'Financial District', 'Flatiron District']), ['Gramercy', 'Gramercy Park'], ...neighborhoodOptions(['Greenwich Village', 'Little Italy', 'Lower East Side', 'NoHo', 'NoMad', 'Nolita', 'Seaport District', 'SoHo', 'Tribeca', 'Union Square', 'West Village'])] },
   { borough: 'Manhattan', title: 'Midtown East', options: neighborhoodOptions(['Beekman Place', 'Kips Bay', 'Midtown', 'Midtown East', 'Midtown South', 'Murray Hill', 'Roosevelt Island', 'Stuy Town / PC Village', 'Sutton Place', 'Tudor City', 'Turtle Bay']) },
@@ -36,15 +37,15 @@ const NEIGHBORHOOD_GROUPS: ReadonlyArray<{ borough: string; title: string; optio
   { borough: 'Bronx', title: 'Bronx neighborhoods', options: neighborhoodOptions(['Mott Haven', 'Riverdale']) },
   { borough: 'Staten Island', title: 'Staten Island neighborhoods', options: [['Stapleton', 'Stapleton'] as NeighborhoodOption] },
 ];
-const PRICE_RANGES: ReadonlyArray<readonly [string, string]> = [...Array.from({ length: 8 }, (_, index) => {
+export const PRICE_RANGES: ReadonlyArray<readonly [string, string]> = [...Array.from({ length: 8 }, (_, index) => {
   const min = 2000 + index * 1000;
   const max = min + 1000;
   return [`${min}-${max}`, `$${min.toLocaleString()}–$${(max - 1).toLocaleString()}`] as const;
 }), ['10000-plus', '$10,000+']];
 const DATE_SPECIFIC_MOVE_IN_OPTIONS = new Set(['exact', 'exact_7', 'exact_15']);
-const BEDROOM_OPTIONS = [['0', 'Studio'], ['1', '1 Bedroom'], ['2', '2 Bedrooms'], ['3', '3 Bedrooms'], ['4', '3+ Bedrooms']] as const;
-const BATHROOM_OPTIONS = [['1', '1 Bathroom'], ['2', '2 Bathrooms'], ['3', '3 Bathrooms'], ['4', '3+ Bathrooms']] as const;
-const MOVE_IN_OPTIONS = [['this_month', 'ASAP this month'], ['end_this_month', 'End of this month'], ['early_next_month', 'Early next month'], ['middle_next_month', 'Middle of next month'], ['end_next_month', 'End of next month'], ['month_after_next', 'The month after next'], ['exact', 'Exact date'], ['exact_7', 'Exact date ±7 days'], ['exact_15', 'Exact date ±15 days']] as const;
+export const BEDROOM_OPTIONS = [['0', 'Studio'], ['1', '1 Bedroom'], ['2', '2 Bedrooms'], ['3', '3 Bedrooms'], ['4', '3+ Bedrooms']] as const;
+export const BATHROOM_OPTIONS = [['1', '1 Bathroom'], ['2', '2 Bathrooms'], ['3', '3 Bathrooms'], ['4', '3+ Bathrooms']] as const;
+export const MOVE_IN_OPTIONS = [['this_month', 'ASAP this month'], ['end_this_month', 'End of this month'], ['early_next_month', 'Early next month'], ['middle_next_month', 'Middle of next month'], ['end_next_month', 'End of next month'], ['month_after_next', 'The month after next'], ['exact', 'Exact date'], ['exact_7', 'Exact date ±7 days'], ['exact_15', 'Exact date ±15 days']] as const;
 const PRIMARY_AMENITIES = [
   ['Elevator', 'Elevator'],
   ['Gym', 'Gym'],
@@ -86,7 +87,7 @@ function closeDetailsAfterPointerLeaves(event: ReactMouseEvent<HTMLDetailsElemen
   }, 180);
 }
 
-function MultiSelectMenu({ label, options, selected, onToggle, alignRight = false, truncateLabel = false }: { label: string; options: ReadonlyArray<readonly [string, string]>; selected: string[]; onToggle: (value: string, checked: boolean) => void; alignRight?: boolean; truncateLabel?: boolean }) {
+export function MultiSelectMenu({ label, options, selected, onToggle, alignRight = false, truncateLabel = false }: { label: string; options: ReadonlyArray<readonly [string, string]>; selected: string[]; onToggle: (value: string, checked: boolean) => void; alignRight?: boolean; truncateLabel?: boolean }) {
   const displayLabel = `${label}${selected.length > 0 ? ` (${selected.length})` : ''}`;
   return <details onMouseLeave={closeDetailsAfterPointerLeaves} className={`group relative ${truncateLabel ? 'min-w-[92px] max-w-[138px] flex-[1_1_118px]' : 'w-auto shrink-0'}`}><summary className={`flex h-10 cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm ${truncateLabel ? 'min-w-0' : 'min-w-max'}`}><span className={truncateLabel ? 'min-w-0 truncate' : 'whitespace-nowrap'} title={displayLabel}>{displayLabel}</span><ChevronDown className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></summary><div className={`flex max-h-64 w-max min-w-56 max-w-[calc(100vw-2rem)] flex-col overflow-x-auto overflow-y-auto rounded-lg border border-border bg-white p-2 shadow-xl sm:absolute sm:top-10 sm:z-50 ${alignRight ? 'sm:right-0' : 'sm:left-0'}`}>{options.map(([value, optionLabel]) => <label key={value} className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm hover:bg-muted/60"><Checkbox checked={selected.includes(value)} onCheckedChange={(checked) => onToggle(value, checked === true)} />{optionLabel}</label>)}</div></details>;
 }
@@ -394,18 +395,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden">
-      <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view"><Button type="button" variant={mobileView === 'map' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('map')}><Map className="mr-2 h-4 w-4" />Map</Button><Button type="button" variant={mobileView === 'list' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('list')}><List className="mr-2 h-4 w-4" />List</Button></div>
-      <div className="min-h-0 flex-1 md:grid md:grid-cols-2">
-        <section className={`${mobileView === 'list' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-border bg-muted/25 md:flex`} aria-label="Building results list">
-          <div className="shrink-0">{compactFilters}</div>
-          <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2 sm:px-4"><p className="text-sm font-medium">{result.total} results</p></div>
-          <div data-results-scroll-root className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{resultCards}</div><div ref={loadMoreRef} className="h-px" aria-hidden="true" /><Footer embedded /></div>
-        </section>
-        <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
-          <DeferredBuildingMap enabled={mobileView === 'map'} buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingClose={() => setSelectedBuildingId(null)} onBuildingHover={setHoveredBuildingId} onViewportChange={updateViewport} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
-        </section>
-      </div>
+    <BuildingBrowseFrame mobileView={mobileView} onMobileViewChange={setMobileView} filters={compactFilters} resultCount={<p className="text-sm font-medium">{result.total} results</p>} list={<><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{resultCards}</div><div ref={loadMoreRef} className="h-px" aria-hidden="true" /><Footer embedded /></>} map={<DeferredBuildingMap enabled={mobileView === 'map'} buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingClose={() => setSelectedBuildingId(null)} onBuildingHover={setHoveredBuildingId} onViewportChange={updateViewport} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />}>
       {compareIds.length > 0 && <>
         {compareOpen && <div role="dialog" aria-modal="true" aria-labelledby="building-comparison-title" className="fixed bottom-20 left-3 right-3 top-16 z-40 flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl md:left-1/2 md:right-auto md:top-auto md:max-h-[72vh] md:w-[min(1200px,calc(100vw-2rem))] md:-translate-x-1/2">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3"><div><h2 id="building-comparison-title" className="font-serif text-xl font-bold">Building comparison</h2><p className="text-xs text-muted-foreground">Starting base rent, current availability, and verified amenities</p></div><Button type="button" size="icon" variant="ghost" aria-label="Close comparison" onClick={() => setCompareOpen(false)}><X className="h-4 w-4" /></Button></div>
@@ -432,6 +422,6 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
         <div className="fixed bottom-3 left-1/2 z-40 flex w-[min(680px,calc(100vw-1.5rem))] -translate-x-1/2 items-center gap-3 rounded-2xl border border-primary/20 bg-white px-3 py-2 shadow-2xl"><GitCompareArrows className="h-5 w-5 shrink-0 text-primary" /><p className="min-w-0 flex-1 truncate text-sm font-semibold">{compareIds.length} selected</p><Button type="button" variant="ghost" className="min-h-11" onClick={() => { void clearCompare(); setCompareOpen(false); }}>Clear</Button><Button asChild className="min-h-11"><Link href="/compare">Compare</Link></Button></div>
       </>}
       {accountError && <p role="status" className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-destructive px-3 py-2 text-sm text-destructive-foreground shadow-lg">{accountError}</p>}
-    </div>
+    </BuildingBrowseFrame>
   );
 }
