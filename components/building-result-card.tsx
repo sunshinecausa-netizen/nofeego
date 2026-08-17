@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Dumbbell, GraduationCap, Heart, Home, MapPin, PawPrint, Shield, Train, Users, WashingMachine, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -116,9 +116,11 @@ type Props = {
   onSelect?: (id: string) => void;
   onClose?: () => void;
   autoLoadStreetView?: boolean;
+  actions?: ReactNode;
+  showSaveAndCompare?: boolean;
 };
 
-export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect, onClose, autoLoadStreetView = false }: Props) {
+export function BuildingCard({ building, inventory, compared = false, favorited = false, highlighted = false, variant = 'list', onCompareChange, onFavoriteChange, onHover, onSelect, onClose, autoLoadStreetView = false, actions, showSaveAndCompare = true }: Props) {
   const heroImage = building.hero_image_url ?? building.hero_image;
   const amenities = new Set(building.amenities ?? []);
   const fullAddress = [building.address, building.city, building.state, building.zip_code].filter(Boolean).join(', ');
@@ -158,7 +160,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
         <div className="relative aspect-[1.55/1] shrink-0 overflow-hidden bg-muted lg:aspect-auto lg:h-[52%]">
           <StreetViewStaticPreview buildingId={building.id} buildingName={displayStreet} latitude={building.latitude} longitude={building.longitude} snapshotUrl={heroImage} autoLoadStreetView={autoLoadStreetView} className="transition-transform duration-300 group-hover:scale-[1.02]" />
           <Link href={hasMorePhotos ? `/buildings/${building.slug}` : `/rent-request?${currentOptionsContext}`} onClick={(event) => event.stopPropagation()} className="absolute bottom-4 left-4 z-20 max-w-[calc(100%-2rem)] truncate rounded-md bg-primary px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-primary-foreground shadow-sm hover:bg-primary-hover">View Photos</Link>
-          <button type="button" className="absolute right-4 top-4 z-20 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-white/95 px-2.5 text-[10px] font-semibold text-navy shadow-md backdrop-blur transition hover:bg-white" aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-5 w-5 shrink-0', savedAndCompared && 'fill-destructive text-destructive')} /><span className="whitespace-nowrap">Save &amp; Compare</span></button>
+          {showSaveAndCompare && <button type="button" className="absolute right-4 top-4 z-20 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-white/95 px-2.5 text-[10px] font-semibold text-navy shadow-md backdrop-blur transition hover:bg-white" aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-5 w-5 shrink-0', savedAndCompared && 'fill-destructive text-destructive')} /><span className="whitespace-nowrap">Save &amp; Compare</span></button>}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3.5">
@@ -171,10 +173,10 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
             <p className="flex min-w-0 items-center gap-1.5 truncate text-xs leading-4 text-muted-foreground"><Train className="h-3.5 w-3.5 shrink-0 text-navy" /><span className="truncate"><SubwayWalkingSummary building={building} /></span></p>
             <p className="flex min-w-0 items-center gap-1.5 truncate text-xs leading-4 text-muted-foreground"><GraduationCap className="h-3.5 w-3.5 shrink-0 text-navy" /><span className="truncate">{university ? `${university.name} · ${university.miles.toFixed(1)} mi` : 'Nearby school distance unavailable'}</span></p>
           </div>
-          <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border pt-2.5">
+          {actions ?? <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border pt-2.5">
             <Button asChild variant="ghost" className="h-9 justify-start px-0 text-sm font-semibold text-navy hover:bg-transparent hover:text-primary"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>Find a Roommate</Link></Button>
             <Button asChild variant="outline" className="h-9 rounded-xl border-primary bg-primary/[0.03] px-4 text-sm font-semibold text-primary hover:bg-primary/[0.08] hover:text-primary"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}>View Availability Details</Link></Button>
-          </div>
+          </div>}
         </div>
       </article>
     );
@@ -194,7 +196,7 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
             <div className="mt-1 flex min-w-0 items-baseline gap-2"><h2 data-copyable className={cn('flex min-w-0 cursor-text select-text items-start gap-1.5 break-words font-sans font-bold leading-tight text-navy transition group-hover:text-primary', compact ? 'text-2xl' : 'text-3xl')}><MapPin className="mt-1 h-5 w-5 shrink-0" /><span>{displayStreet}</span></h2><p className={cn('shrink-0 truncate font-medium text-muted-foreground', compact ? 'text-sm' : 'text-base')}>{building.neighborhood ?? building.borough ?? 'New York metro'}</p></div>
           </div>
 
-          {compact && <button type="button" className={cn('absolute top-5 z-20 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-2.5 text-[10px] font-semibold text-navy transition hover:bg-muted', onClose ? 'right-16' : 'right-4')} aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-6 w-6', savedAndCompared && 'fill-destructive text-destructive')} /><span className="whitespace-nowrap">Save &amp; Compare</span></button>}
+          {compact && showSaveAndCompare && <button type="button" className={cn('absolute top-5 z-20 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-2.5 text-[10px] font-semibold text-navy transition hover:bg-muted', onClose ? 'right-16' : 'right-4')} aria-label={savedAndCompared ? `Remove ${building.name} from saved and compare` : `Save ${building.name} and add to compare`} aria-pressed={savedAndCompared} onClick={(event) => { event.stopPropagation(); const next = !savedAndCompared; onFavoriteChange?.(building, next); onCompareChange?.(building, next); }}><Heart className={cn('h-6 w-6', savedAndCompared && 'fill-destructive text-destructive')} /><span className="whitespace-nowrap">Save &amp; Compare</span></button>}
           {onClose && <button type="button" className="absolute right-3 top-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-foreground shadow" aria-label={`Close ${building.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}><X className="h-5 w-5" /></button>}
 
           <div className="mt-5 grid grid-cols-4 border-y border-border/70 py-4" aria-label="Starting base rents by apartment type">
@@ -210,10 +212,10 @@ export function BuildingCard({ building, inventory, compared = false, favorited 
             {CORE_AMENITIES.map(({ label, values, Icon }, index) => { const confirmed = values.some((value) => amenities.has(value)); return <div key={label} className={cn('flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-center', index > 0 && 'border-l border-border', !confirmed && 'opacity-25')}><Icon className="h-7 w-7 text-navy" /><span className={cn('whitespace-nowrap font-medium text-navy', compact ? 'text-[11px]' : 'text-xs')}>{label}</span></div>; })}
           </div>
 
-          <div className="mt-auto grid grid-cols-2 gap-3">
+          {actions ?? <div className="mt-auto grid grid-cols-2 gap-3">
             <Button asChild variant="outline" className="h-20 justify-start border-primary px-4 text-left hover:bg-primary/5"><Link href={`/roommate-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Users className="mr-3 h-8 w-8 shrink-0 text-navy" /><span className="leading-5 text-navy"><span className="block whitespace-nowrap text-sm font-bold">Find a roommate</span>{(inventory?.roommateInterestCount ?? 0) >= 3 ? <span className="block text-[11px] font-medium leading-4">{inventory?.roommateInterestCount} people are interested in sharing this home</span> : <><span className="block whitespace-nowrap text-[11px] font-medium leading-4">Join others interested in</span><span className="block whitespace-nowrap text-[11px] font-medium leading-4">sharing this home.</span></>}</span></Link></Button>
             <Button asChild variant="outline" className="h-20 rounded-xl border-primary bg-primary/[0.03] px-4 text-primary hover:bg-primary/[0.08] hover:text-primary"><Link href={`/rent-request?${requestContext}`} onClick={(event) => event.stopPropagation()}><Home className="mr-3 h-8 w-8 shrink-0" /><span className="text-sm font-bold">View Availability Details</span></Link></Button>
-          </div>
+          </div>}
         </div>
       </div>
     </article>

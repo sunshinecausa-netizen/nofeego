@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { accountError, authenticateAccountRequest } from '@/lib/account/server';
 
-const BUILDING_FIELDS = 'id,name,address,street_address,address_line_2,city,state,zip_code,neighborhood,borough,building_type,amenities,pet_friendly,official_building_website,management_company,description,last_verified_date';
+const BUILDING_FIELDS = 'id,slug,name,address,street_address,address_line_2,city,state,zip_code,neighborhood,borough,latitude,longitude,building_type,amenities,pet_friendly,year_built,floors,stories,total_units,hero_image,hero_image_url,gallery,nearby_subway,official_building_website,management_company,description,last_verified_date,updated_at';
 const UNIT_FIELDS = 'id,building_id,unit_number,floorplan_name,unit_type,bedrooms,bathrooms,square_feet,floor,lease_term,status,is_active';
 const SNAPSHOT_FIELDS = 'id,building_id,unit_id,source_id,rent,net_effective_rent,concession_text,available_date,inventory_status,captured_at,valid_until';
 const SOURCE_FIELDS = 'id,building_id,source_type,source_name,source_url,last_verified_at,verification_status';

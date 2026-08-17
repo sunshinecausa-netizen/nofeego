@@ -2,9 +2,11 @@ export const INVENTORY_RECENT_HOURS = 24;
 export const INVENTORY_OUTDATED_DAYS = 7;
 
 export type InventoryBuilding = {
-  id:string; name:string; address:string; street_address:string; address_line_2:string|null; city:string; state:string; zip_code:string|null;
+  id:string; slug:string; name:string; address:string; street_address:string; address_line_2:string|null; city:string; state:string; zip_code:string|null;
   neighborhood:string|null; borough:string|null; building_type:string|null; amenities:string[]|null; pet_friendly:boolean|null;
-  official_building_website:string|null; management_company:string|null; description:string|null; last_verified_date:string|null;
+  latitude:number|null; longitude:number|null; year_built:number|null; floors:number|null; stories:number|null; total_units:number|null;
+  hero_image:string|null; hero_image_url:string|null; gallery:string[]|null; nearby_subway:string[]|null;
+  official_building_website:string|null; management_company:string|null; description:string|null; last_verified_date:string|null; updated_at:string;
 };
 export type InventoryUnit = { id:string; building_id:string; unit_number:string|null; floorplan_name:string|null; unit_type:string|null; bedrooms:number|null; bathrooms:number|null; square_feet:number|null; floor:number|null; lease_term:number|null; status:string; is_active:boolean };
 export type InventorySnapshot = { id:string; building_id:string; unit_id:string; source_id:string|null; rent:number|null; net_effective_rent:number|null; concession_text:string|null; available_date:string|null; inventory_status:string; captured_at:string; valid_until:string|null };
@@ -27,6 +29,33 @@ export function latestSnapshots(snapshots:InventorySnapshot[]) {
   return [...byUnit.values()];
 }
 
+export function agentBuildingProjection(building:InventoryBuilding):Building {
+  return {
+    ...building,building_id:null,building_name:null,neighborhood_id:null,description:building.description,seo_title:null,seo_description:null,
+    faqs:null,nearby_grocery:null,nearby_restaurants:null,transportation:null,neighborhood_summary:null,contact_email:null,contact_phone:null,
+    building_class:null,luxury:null,apply_online_url:null,virtual_tour_url:null,building_phone:null,building_leasing_email:null,developer:null,
+    current_owner:null,source_url:null,search_keywords:[],google_place_id:null,logo_url:null,gallery_folder:null,partnership_status:'Not Contacted',
+    leasing_contact_name:null,leasing_phone:null,data_confidence:'Low',ai_summary:null,updated_by:null,created_at:building.updated_at,
+    is_active:true,neighborhoods:null,
+  };
+}
+
+export function agentInventorySummary(buildingId:string,units:InventoryUnit[],snapshots:InventorySnapshot[]):BuildingInventorySummary {
+  const unitById=new Map(units.filter(unit=>unit.building_id===buildingId).map(unit=>[unit.id,unit]));
+  const current=latestSnapshots(snapshots.filter(snapshot=>snapshot.building_id===buildingId))
+    .filter(snapshot=>snapshot.inventory_status==='available');
+  const minimums:Partial<Record<0|1|2|3,number>>={};
+  const counts:Partial<Record<0|1|2|3,number>>={};
+  for(const snapshot of current){
+    const bedroom=unitById.get(snapshot.unit_id)?.bedrooms;
+    if(bedroom==null||bedroom<0||bedroom>3)continue;
+    const key=bedroom as 0|1|2|3;
+    counts[key]=(counts[key]??0)+1;
+    if(snapshot.rent!=null)minimums[key]=minimums[key]==null?snapshot.rent:Math.min(minimums[key]!,snapshot.rent);
+  }
+  return {availabilityStatus:current.length?'available':'unavailable',bedroomMinimums:minimums,bedroomAvailableCounts:counts,availableCount:current.length||undefined};
+}
+
 export function inventoryFreshness(snapshot:InventorySnapshot|undefined, replyPending=false, now=Date.now()):Freshness {
   if(replyPending) return 'Property reply pending';
   if(!snapshot) return 'Needs confirmation';
@@ -39,3 +68,5 @@ export function inventoryFreshness(snapshot:InventorySnapshot|undefined, replyPe
 
 export function money(value:number|null|undefined){return value==null?'Not provided':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(value)}
 export function dateTime(value:string|null|undefined){return value?new Date(value).toLocaleString():'Not provided'}
+import type { BuildingInventorySummary } from '@/lib/public-buildings';
+import type { Building } from '@/lib/types';
