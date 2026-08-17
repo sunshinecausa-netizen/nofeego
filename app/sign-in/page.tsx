@@ -48,11 +48,11 @@ export function SignInExperience({ portal = 'tenant' }: { portal?: SignInPortal 
     if (portal !== 'agent') return requestedReturnPath() ?? roleHome();
     if (profile?.authorization_status !== 'active' || profile.account_role !== 'agent') return roleHome();
     const requested = requestedReturnPath();
-    return requested?.startsWith('/agent/') ? requested : '/agent/cases';
+    return requested === '/agent' || requested?.startsWith('/agent/') ? requested : '/agent/cases';
   }, [portal, profile, roleHome]);
 
   const callbackReturnPath = () => portal === 'agent'
-    ? `/agent/sign-in?next=${encodeURIComponent(requestedReturnPath()?.startsWith('/agent/') ? requestedReturnPath()! : '/agent/cases')}`
+    ? `/agent/sign-in?next=${encodeURIComponent(requestedReturnPath() === '/agent' || requestedReturnPath()?.startsWith('/agent/') ? requestedReturnPath()! : '/agent/cases')}`
     : requestedReturnPath();
 
   useEffect(() => {

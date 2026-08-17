@@ -44,7 +44,7 @@ export function AgentHomeBrowser(){
   const [busy,setBusy]=useState('');
   const [notice,setNotice]=useState('');
 
-  useEffect(()=>{let active=true;Promise.all([accountFetch<HomePayload>('/api/agent/home'),accountFetch<AgentInventoryPayload>('/api/agent/inventory')]).then(([nextHome,nextInventory])=>{if(active){setHome(nextHome);setInventory(nextInventory)}}).catch(()=>{if(active)setError('Agent Home could not be loaded. Please try again.')});return()=>{active=false}},[]);
+  useEffect(()=>{let active=true;Promise.all([accountFetch<HomePayload>('/api/agent/home'),accountFetch<AgentInventoryPayload>('/api/agent/inventory')]).then(([nextHome,nextInventory])=>{if(active){setHome(nextHome);setInventory(nextInventory)}}).catch((reason:unknown)=>{if(!active)return;const code=reason instanceof Error?reason.message:'ACCOUNT_REQUEST_FAILED';if(code==='AUTH_REQUIRED'){window.location.replace('/agent/sign-in?next=%2Fagent');return}setError(code==='AGENT_REQUIRED'?'Your account does not have active Agent access.':'Agent Home could not be loaded. Please try again.')});return()=>{active=false}},[]);
 
   const amenities=useMemo(()=>['All amenities',...new Set((inventory?.buildings??[]).flatMap(item=>item.amenities??[]))].sort((a,b)=>a==='All amenities'?-1:b==='All amenities'?1:a.localeCompare(b)),[inventory]);
   const cards=useMemo(()=>{
