@@ -25,4 +25,3 @@ DO $$ BEGIN ALTER TABLE public.roommate_preferences ADD CONSTRAINT roommate_pref
 DO $$ BEGIN ALTER TABLE public.roommate_preferences ADD CONSTRAINT roommate_preferences_guest_frequency_check CHECK (guest_frequency IN ('rarely','occasionally','frequently')) NOT VALID; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE public.roommate_preferences ADD CONSTRAINT roommate_preferences_overnight_check CHECK (overnight_guests IN ('not_comfortable','discuss_first','comfortable')) NOT VALID; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE public.roommate_preferences ADD CONSTRAINT roommate_preferences_temperature_check CHECK (temperature_preference IN ('cool','moderate','warm')) NOT VALID; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-

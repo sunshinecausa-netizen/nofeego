@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase/client';
+import { authCallbackUrl, safeAuthNext } from '@/lib/auth/redirects';
+import { AuthShell } from '@/components/auth-shell';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -21,9 +23,11 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export default function SignInPage() {
+type SignInPortal = 'tenant' | 'agent';
+
+export function SignInExperience({ portal = 'tenant' }: { portal?: SignInPortal }) {
   const router = useRouter();
-  const { user, loading: authLoading, signIn } = useAuth();
+  const { user, profile, loading: authLoading, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -31,17 +35,30 @@ export default function SignInPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [nextPath, setNextPath] = useState('/dashboard');
+  const [nextPath, setNextPath] = useState(portal === 'agent' ? '/agent/cases' : '/dashboard');
 
-  const returnPath = () => {
+  const requestedReturnPath = () => {
     const value = new URLSearchParams(window.location.search).get('next');
-    return value?.startsWith('/') && !value.startsWith('//') ? value : '/dashboard';
+    return value ? safeAuthNext(value) : null;
   };
 
+  const roleHome = useCallback(() => profile?.authorization_status !== 'active' ? '/access-pending' : profile?.account_role === 'agent' ? '/agent/cases' : profile?.account_role === 'property' ? '/property/registrations' : profile?.account_role === 'admin' || profile?.is_admin ? '/admin/rental-cases' : '/', [profile]);
+
+  const portalDestination = useCallback(() => {
+    if (portal !== 'agent') return requestedReturnPath() ?? roleHome();
+    if (profile?.authorization_status !== 'active' || profile.account_role !== 'agent') return roleHome();
+    const requested = requestedReturnPath();
+    return requested?.startsWith('/agent/') ? requested : '/agent/cases';
+  }, [portal, profile, roleHome]);
+
+  const callbackReturnPath = () => portal === 'agent'
+    ? `/agent/sign-in?next=${encodeURIComponent(requestedReturnPath()?.startsWith('/agent/') ? requestedReturnPath()! : '/agent/cases')}`
+    : requestedReturnPath();
+
   useEffect(() => {
-    queueMicrotask(() => setNextPath(returnPath()));
-    if (!authLoading && user) router.replace(returnPath());
-  }, [authLoading, router, user]);
+    queueMicrotask(() => setNextPath(requestedReturnPath() ?? '/'));
+    if (!authLoading && user && profile) { router.replace(portalDestination()); }
+  }, [authLoading, portalDestination, profile, router, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +68,6 @@ export default function SignInPage() {
     setLoading(false);
     if (error) {
       setError(error);
-    } else {
-      router.replace(returnPath());
     }
   };
 
@@ -61,7 +76,7 @@ export default function SignInPage() {
     setGoogleLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/sign-in?next=${encodeURIComponent(returnPath())}` },
+      options: { redirectTo: authCallbackUrl(window.location.origin, callbackReturnPath()) },
     });
     if (error) {
       setError(error.message);
@@ -73,29 +88,15 @@ export default function SignInPage() {
     setError(null); setMagicLinkSent(false);
     if (!email) { setError('Enter your email address first.'); return; }
     setMagicLoading(true);
-    const next = returnPath();
-    const { error: magicError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` } });
+    const next = callbackReturnPath();
+    const { error: magicError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: authCallbackUrl(window.location.origin, next) } });
     setMagicLoading(false);
     if (magicError) setError(magicError.message); else setMagicLinkSent(true);
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 bg-gradient-to-b from-accent/30 to-background">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <span className="font-serif text-2xl font-bold">
-              Manhattan<span className="text-primary">Living</span>
-            </span>
-          </Link>
-          <h1 className="font-serif text-2xl font-bold mb-2">Welcome Back</h1>
-          <p className="text-muted-foreground text-sm">Sign in to save, compare, and manage your rental requests.</p>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-border shadow-lg p-6 space-y-4">
+    <AuthShell mode={portal === 'agent' ? 'feature' : 'overlay'} eyebrow={portal === 'agent' ? 'NYC HOMES AGENT PORTAL' : 'Secure account access'} title={portal === 'agent' ? 'Manage your rental clients' : 'Welcome back'} description={portal === 'agent' ? 'Review assigned rental cases, share verified options, coordinate with properties, and keep every deal moving.' : 'Sign in without leaving your NYC rental search.'} feature={portal === 'agent' ? { badge: 'NYC Homes professional workspace', heading: 'Move every rental case forward.', accent: 'One verified workflow.', description: 'Work from assigned client demand through recommendations, property coordination, tours, applications, and signed leases.', points: ['View assigned rental cases','Review current inventory and concessions','Send verified recommendations','Register clients with leasing teams','Track tours, applications, and signed leases'] } : undefined} footer={portal === 'agent' ? 'Agent access is provided by NYC Homes. Contact an administrator if you need access.' : undefined}>
+        <div className="space-y-4">
           {error && (
             <div className="bg-destructive/10 text-destructive text-sm rounded-lg p-3 border border-destructive/20">
               {error}
@@ -137,16 +138,17 @@ export default function SignInPage() {
               {loading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing in...</>) : ('Sign In')}
             </Button>
             <Button type="button" variant="outline" className="w-full" size="lg" disabled={magicLoading} onClick={handleMagicLink}>
-              {magicLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</> : 'Email me a magic link'}
+              {magicLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</> : portal === 'agent' ? 'Continue with email' : 'Email me a magic link'}
             </Button>
             {magicLinkSent && <p role="status" className="rounded-lg bg-success/15 p-3 text-sm">Check your email. The link returns to your original task and can only be used once.</p>}
           </form>
-          <p className="text-center text-sm text-muted-foreground">
+          {portal !== 'agent' && <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Link href={`/sign-up?next=${encodeURIComponent(nextPath)}`} className="font-medium text-primary hover:underline">Create one</Link>
-          </p>
+          </p>}
         </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 }
+
+export default function SignInPage() { return <SignInExperience />; }

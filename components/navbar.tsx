@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Building2, GitCompareArrows, Heart, Languages, LayoutDashboard, LogIn, LogOut, MessageSquare, PlusCircle } from 'lucide-react';
+import { Building2, GitCompareArrows, Heart, Languages, LayoutDashboard, LogIn, LogOut, Mail, MessageSquare, PlusCircle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 import { useTenantData } from '@/lib/account/tenant-data-context';
@@ -11,7 +11,7 @@ import { useLocale } from '@/components/locale-provider';
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
-  const { user, loading, signOut } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const { favoriteIds, compareIds } = useTenantData();
   const locale = useLocale();
   const pathname = usePathname();
@@ -37,25 +37,33 @@ export function Navbar() {
           </span>
         </Link>
 
-        <div className="flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto sm:gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto sm:justify-end sm:gap-2">
           <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
             <a href={languageHref} hrefLang={locale === 'zh-Hans' ? 'en' : 'zh-Hans'} aria-label={locale === 'zh-Hans' ? '切换至英文' : 'Switch to Chinese'} onClick={() => { document.cookie = `nofeego_locale=${locale === 'zh-Hans' ? 'en' : 'zh-Hans'};path=/;max-age=31536000;samesite=lax`; }} data-no-translate data-no-localize>
               <Languages className="mr-1.5 h-4 w-4" />
               <span>{locale === 'zh-Hans' ? '切换至英文' : '中文'}</span>
             </a>
           </Button>
-          <Button asChild variant="outline" size="sm" className="px-2 sm:px-3">
-            <Link href="/list-your-property">
-              <PlusCircle className="mr-1.5 h-4 w-4" />
-              <span className="hidden sm:inline">List Your Property</span>
-              <span className="sm:hidden">List Property</span>
-            </Link>
-          </Button>
+          {!loading && (!user || profile?.account_role === 'property') && (
+            <Button asChild variant="outline" size="sm" className="px-2 sm:px-3">
+              <Link href="/list-your-property">
+                <PlusCircle className="mr-1.5 h-4 w-4" />
+                <span className="hidden sm:inline">List Your Property</span>
+                <span className="sm:hidden">List Property</span>
+              </Link>
+            </Button>
+          )}
           {!loading && user ? <>
-            <Button asChild variant="ghost" size="sm"><Link href="/dashboard"><LayoutDashboard className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Dashboard</span></Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/dashboard/saved"><Heart className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Saved Buildings</span><span className="ml-1 text-xs">{favoriteIds.length}</span></Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/compare"><GitCompareArrows className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Compare</span><span className="ml-1 text-xs">{compareIds.length}</span></Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/dashboard/requests"><MessageSquare className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">My Requests</span></Link></Button>
+            {profile?.account_role === 'tenant' && <>
+              <Button asChild variant="ghost" size="sm"><Link href="/dashboard"><LayoutDashboard className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Dashboard</span></Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/dashboard/saved"><Heart className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Saved Buildings</span><span className="ml-1 text-xs">{favoriteIds.length}</span></Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/compare"><GitCompareArrows className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Compare</span><span className="ml-1 text-xs">{compareIds.length}</span></Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/dashboard/requests"><MessageSquare className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">My Requests</span></Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/dashboard/roommates"><Users className="mr-1.5 h-4 w-4" /><span className="hidden lg:inline">Find Roommates</span></Link></Button>
+            </>}
+            {profile?.account_role === 'agent' && <><Button asChild variant="ghost" size="sm"><Link href="/agent"><LayoutDashboard className="mr-1.5 h-4 w-4" />Home</Link></Button><Button asChild variant="ghost" size="sm"><Link href="/agent/cases">Rental Cases</Link></Button><Button asChild variant="ghost" size="sm"><Link href="/agent/inventory"><Building2 className="mr-1.5 h-4 w-4" />Inventory</Link></Button><Button asChild variant="ghost" size="sm"><Link href="/agent/property-outreach"><Mail className="mr-1.5 h-4 w-4" />Property Outreach</Link></Button></>}
+            {profile?.account_role === 'property' && <Button asChild variant="ghost" size="sm"><Link href="/property/registrations"><LayoutDashboard className="mr-1.5 h-4 w-4" />Registrations</Link></Button>}
+            {profile?.account_role === 'admin' && <Button asChild variant="ghost" size="sm"><Link href="/admin/rental-cases"><LayoutDashboard className="mr-1.5 h-4 w-4" />Admin Cases</Link></Button>}
             <Button type="button" variant="outline" size="sm" onClick={() => void signOut()}><LogOut className="mr-1.5 h-4 w-4" /><span className="hidden sm:inline">Sign Out</span></Button>
           </> : <Button asChild size="sm">
             <Link href="/sign-in">

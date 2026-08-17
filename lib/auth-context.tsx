@@ -11,7 +11,7 @@ type AuthContextType = {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: string | null; confirmationRequired: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signIn: async () => ({ error: 'Not implemented' }),
-  signUp: async () => ({ error: 'Not implemented' }),
+  signUp: async () => ({ error: 'Not implemented', confirmationRequired: false }),
   signOut: async () => {},
   refreshProfile: async () => {},
 });
@@ -49,29 +49,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    let active = true;
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!active) return;
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
-        fetchProfile(data.session.user.id);
-      }
-      setLoading(false);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        (async () => {
-          await fetchProfile(newSession.user.id);
-        })();
+        await fetchProfile(data.session.user.id);
       } else {
         setProfile(null);
       }
-      setLoading(false);
+      if (active) setLoading(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setLoading(true);
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      if (newSession?.user) {
+        queueMicrotask(async () => {
+          await fetchProfile(newSession.user.id);
+          if (active) setLoading(false);
+        });
+      } else {
+        setProfile(null);
+        setLoading(false);
+      }
     });
 
     return () => {
+      active = false;
       authListener.subscription.unsubscribe();
     };
   }, [fetchProfile]);
@@ -89,13 +97,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: { display_name: displayName ?? '' },
       },
     });
-    if (error) return { error: error.message };
-    if (data.user) {
+    if (error) return { error: error.message, confirmationRequired: false };
+    if (data.user && data.session) {
       setSession(data.session);
       setUser(data.user);
       await fetchProfile(data.user.id);
+      return { error: null, confirmationRequired: false };
     }
-    return { error: null };
+    return { error: null, confirmationRequired: true };
   };
 
   const signOut = async () => {

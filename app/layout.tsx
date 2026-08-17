@@ -7,6 +7,8 @@ import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { TenantDataProvider } from '@/lib/account/tenant-data-context';
 import { LocaleProvider } from '@/components/locale-provider';
+import { Suspense } from 'react';
+import { AcquisitionCapture } from '@/components/acquisition-capture';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
@@ -64,6 +66,7 @@ export default async function RootLayout({
       <body className="font-sans antialiased min-h-screen flex flex-col">
         <LocaleProvider locale={locale}>
           <AuthProvider>
+            <Suspense fallback={null}><AcquisitionCapture /></Suspense>
             <TenantDataProvider>
               <Navbar />
               <main className="flex-1">{children}</main>

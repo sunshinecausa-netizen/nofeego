@@ -1,8 +1,9 @@
+/* Legacy Inquiry deep link: the API resolves its formal Case and this page forwards to the canonical route. */
 'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, CalendarDays, Camera, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { accountFetch } from '@/lib/account/client';
@@ -11,8 +12,8 @@ type RentalCase = { id:string; selected_floor_plan:string|null; displayed_starti
 type Option = { id:string; unit_number:string|null; current_rent:number|null; concession:string|null; available_date:string|null; floor_plan_url:string|null; authorized_photo_urls:string[]; tour_method:string|null; information_valid_until:string|null; notes:string|null };
 
 export default function RentalCasePage(){
-  const { id } = useParams<{id:string}>(); const [data,setData]=useState<{rentalCase:RentalCase;options:Option[]}|null>(null); const [error,setError]=useState<string|null>(null);
-  useEffect(()=>{accountFetch<{rentalCase:RentalCase;options:Option[]}>(`/api/account/rental-cases?inquiryId=${encodeURIComponent(id)}`).then(setData).catch(e=>setError(e instanceof Error?e.message:'Unable to load this Rental Case.'))},[id]);
+  const { id } = useParams<{id:string}>(); const router=useRouter(); const [data,setData]=useState<{rentalCase:RentalCase;options:Option[]}|null>(null); const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{accountFetch<{rentalCase:RentalCase;options?:Option[]}>(`/api/account/rental-cases?inquiryId=${encodeURIComponent(id)}`).then(result=>{router.replace(`/cases/${result.rentalCase.id}`);setData({...result,options:result.options??[]})}).catch(e=>setError(e instanceof Error?e.message:'Unable to load this Rental Case.'))},[id,router]);
   if(!data&&!error)return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin"/></div>;
   if(error)return <main className="mx-auto max-w-4xl px-4 py-10"><p className="rounded-xl bg-destructive/10 p-4 text-destructive">{error}</p></main>;
   const rentalCase=data!.rentalCase;

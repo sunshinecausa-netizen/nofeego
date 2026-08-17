@@ -190,8 +190,8 @@ GRANT SELECT ON public.rental_cases,public.rental_case_options,public.rental_cas
 CREATE OR REPLACE FUNCTION public.record_rental_case_transition(p_case_id uuid,p_from text,p_to text,p_reason text DEFAULT NULL)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 BEGIN
-  INSERT INTO public.rental_case_status_history(rental_case_id,from_status,to_status,actor_id,actor_role,reason)
-  VALUES(p_case_id,p_from,p_to,auth.uid(),COALESCE(public.current_account_role(),'system'),p_reason);
+  INSERT INTO public.rental_case_status_history(rental_case_id,from_status,to_status,actor_id,actor_role,reason,created_at)
+  VALUES(p_case_id,p_from,p_to,auth.uid(),COALESCE(public.current_account_role(),'system'),p_reason,clock_timestamp());
   INSERT INTO public.rental_case_audit_logs(rental_case_id,actor_id,actor_role,event_type,metadata)
   VALUES(p_case_id,auth.uid(),COALESCE(public.current_account_role(),'system'),'rental_case.status_changed',jsonb_build_object('from',p_from,'to',p_to,'reason',p_reason));
 END $$;
@@ -200,8 +200,8 @@ REVOKE ALL ON FUNCTION public.record_rental_case_transition(uuid,text,text,text)
 CREATE OR REPLACE FUNCTION public.record_rental_case_created()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 BEGIN
-  INSERT INTO public.rental_case_status_history(rental_case_id,from_status,to_status,actor_id,actor_role,reason)
-  VALUES(NEW.id,NULL,NEW.status,auth.uid(),COALESCE(public.current_account_role(),'system'),'case_created');
+  INSERT INTO public.rental_case_status_history(rental_case_id,from_status,to_status,actor_id,actor_role,reason,created_at)
+  VALUES(NEW.id,NULL,NEW.status,auth.uid(),COALESCE(public.current_account_role(),'system'),'case_created',clock_timestamp());
   RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION public.record_rental_case_created() FROM PUBLIC,anon,authenticated;
@@ -233,6 +233,14 @@ BEGIN
   SELECT * INTO c FROM public.rental_cases WHERE id=p_case_id FOR UPDATE;
   IF c.id IS NULL THEN RAISE EXCEPTION 'rental_case_not_found' USING ERRCODE='no_data_found'; END IF;
   old_status:=c.status;
+  IF old_status=p_to_status AND (
+    role_name='admin' OR (role_name='tenant' AND c.user_id=auth.uid()) OR
+    (role_name='agent' AND c.assigned_agent_id=auth.uid()) OR
+    (role_name='property' AND EXISTS(SELECT 1 FROM public.rental_case_property_registrations r
+      JOIN public.property_organization_members m ON m.organization_id=r.organization_id
+      JOIN public.property_building_access b ON b.organization_id=r.organization_id AND b.building_id=r.building_id
+      WHERE r.rental_case_id=c.id AND m.profile_id=auth.uid()))
+  ) THEN RETURN c; END IF;
   allowed:=CASE
     WHEN role_name='admin' AND old_status='submitted' AND p_to_status='reviewed' THEN true
     WHEN role_name='agent' AND c.assigned_agent_id=auth.uid() AND old_status='agent_assigned' AND p_to_status='options_sent' THEN true
@@ -275,7 +283,9 @@ DECLARE c public.rental_cases; old_status text;
 BEGIN
   IF public.current_account_role()<>'admin' THEN RAISE EXCEPTION 'admin_required' USING ERRCODE='insufficient_privilege'; END IF;
   IF NOT EXISTS(SELECT 1 FROM public.profiles WHERE id=p_agent_id AND account_role='agent' AND authorization_status='active') THEN RAISE EXCEPTION 'active_agent_required'; END IF;
-  SELECT status INTO old_status FROM public.rental_cases WHERE id=p_case_id FOR UPDATE;
+  SELECT * INTO c FROM public.rental_cases WHERE id=p_case_id FOR UPDATE;
+  old_status:=c.status;
+  IF old_status='agent_assigned' AND c.assigned_agent_id=p_agent_id THEN RETURN c; END IF;
   IF old_status<>'reviewed' THEN RAISE EXCEPTION 'case_must_be_reviewed'; END IF;
   UPDATE public.rental_cases SET assigned_agent_id=p_agent_id,status='agent_assigned' WHERE id=p_case_id RETURNING * INTO c;
   PERFORM public.record_rental_case_transition(p_case_id,old_status,'agent_assigned','admin_assignment'); RETURN c;
@@ -291,7 +301,9 @@ BEGIN
   SELECT * INTO c FROM public.rental_cases WHERE id=p_case_id FOR UPDATE;
   IF public.current_account_role()<>'agent' OR c.assigned_agent_id<>auth.uid() OR c.status NOT IN ('agent_assigned','options_sent') THEN RAISE EXCEPTION 'assigned_agent_required' USING ERRCODE='insufficient_privilege'; END IF;
   INSERT INTO public.rental_case_recommendation_snapshots(rental_case_id,agent_id,building_id,unit_id,unit_label,gross_rent,net_effective_rent,available_date,lease_term_months,concession,source_freshness)
-  VALUES(p_case_id,auth.uid(),p_building_id,p_unit_id,p_unit_label,p_gross_rent,p_net_effective_rent,p_available_date,p_lease_term_months,p_concession,p_source_freshness) RETURNING * INTO result;
+  VALUES(p_case_id,auth.uid(),p_building_id,p_unit_id,p_unit_label,p_gross_rent,p_net_effective_rent,p_available_date,p_lease_term_months,p_concession,p_source_freshness)
+  ON CONFLICT(rental_case_id,agent_id,building_id,unit_id,unit_label,gross_rent,net_effective_rent,available_date,lease_term_months,concession,source_freshness)
+  DO UPDATE SET sent_at=public.rental_case_recommendation_snapshots.sent_at RETURNING * INTO result;
   IF c.status='agent_assigned' THEN UPDATE public.rental_cases SET status='options_sent' WHERE id=p_case_id; PERFORM public.record_rental_case_transition(p_case_id,'agent_assigned','options_sent','recommendation_sent'); END IF;
   RETURN result;
 END $$;
@@ -303,6 +315,10 @@ RETURNS public.rental_case_property_registrations LANGUAGE plpgsql SECURITY DEFI
 DECLARE c public.rental_cases; result public.rental_case_property_registrations;
 BEGIN
   SELECT * INTO c FROM public.rental_cases WHERE id=p_case_id FOR UPDATE;
+  SELECT * INTO result FROM public.rental_case_property_registrations
+    WHERE rental_case_id=p_case_id AND organization_id=p_organization_id AND building_id=p_building_id
+      AND recommendation_id IS NOT DISTINCT FROM p_recommendation_id;
+  IF result.id IS NOT NULL AND c.assigned_agent_id=auth.uid() AND public.current_account_role()='agent' THEN RETURN result; END IF;
   IF public.current_account_role()<>'agent' OR c.assigned_agent_id<>auth.uid() OR c.status<>'interested' THEN RAISE EXCEPTION 'assigned_agent_registration_required' USING ERRCODE='insufficient_privilege'; END IF;
   IF NOT EXISTS(SELECT 1 FROM public.property_building_access WHERE organization_id=p_organization_id AND building_id=p_building_id) THEN RAISE EXCEPTION 'property_building_access_required'; END IF;
   INSERT INTO public.rental_case_property_registrations(rental_case_id,organization_id,building_id,recommendation_id)
@@ -338,6 +354,9 @@ BEGIN
     RAISE EXCEPTION 'assigned_agent_required' USING ERRCODE='insufficient_privilege';
   END IF;
   IF p_expires_at<=now() OR p_expires_at>now()+interval '7 days' THEN RAISE EXCEPTION 'invalid_invitation_expiry'; END IF;
+  SELECT * INTO result FROM public.rental_case_property_invitations
+    WHERE registration_id=p_registration_id AND email=lower(btrim(p_email)) AND revoked_at IS NULL AND used_at IS NULL;
+  IF result.id IS NOT NULL THEN RETURN result; END IF;
   INSERT INTO public.rental_case_property_invitations(registration_id,email,token_hash,expires_at)
   VALUES(p_registration_id,lower(btrim(p_email)),p_token_hash,p_expires_at) RETURNING * INTO result;
   RETURN result;
@@ -356,7 +375,16 @@ BEGIN
     WHERE m.profile_id=auth.uid() AND m.organization_id=r.organization_id AND b.building_id=r.building_id) THEN
     RAISE EXCEPTION 'property_building_access_required' USING ERRCODE='insufficient_privilege';
   END IF;
-  IF r.status<>'pending' THEN RAISE EXCEPTION 'registration_already_completed'; END IF;
+  IF r.status<>'pending' THEN
+    IF r.inventory_available IS NOT DISTINCT FROM p_available
+      AND r.confirmed_gross_rent IS NOT DISTINCT FROM p_gross_rent
+      AND r.confirmed_net_effective_rent IS NOT DISTINCT FROM p_net_effective_rent
+      AND r.confirmed_available_date IS NOT DISTINCT FROM p_available_date
+      AND r.confirmed_concession IS NOT DISTINCT FROM p_concession
+      AND r.tour_instructions IS NOT DISTINCT FROM p_tour_instructions
+      AND r.application_url IS NOT DISTINCT FROM p_application_url THEN RETURN r; END IF;
+    RAISE EXCEPTION 'registration_already_completed';
+  END IF;
   UPDATE public.rental_case_property_registrations SET status=CASE WHEN p_available THEN 'acknowledged' ELSE 'unavailable' END,
     inventory_available=p_available,confirmed_gross_rent=p_gross_rent,confirmed_net_effective_rent=p_net_effective_rent,
     confirmed_available_date=p_available_date,confirmed_concession=p_concession,tour_instructions=p_tour_instructions,

@@ -6,7 +6,7 @@
 | Integration branch | `codex/four-role-rental-case` |
 | Worktree | `C:\Users\Work-AI\Documents\纽约租赁网站\integration-four-role-rental-case` |
 | Candidate commit | 本文件所在的最终本地 commit；使用 `git rev-parse HEAD` 获取不可自引用的 SHA |
-| Release state | `DEPLOYMENT PAUSED` / not deployed |
+| Release state | Production `DEPLOYMENT PAUSED`; protected Preview only |
 
 ## 选择性来源
 
@@ -49,12 +49,20 @@ Property 第一阶段没有子角色，Leasing Team 不是第五个数据库角�
 
 ## 尚未完成或外部阻断
 
-- 所有 migration 均未部署；生产 schema 和运行状态没有验证。
-- 本机缺少 Supabase CLI，Docker Desktop 未运行，空库 replay 和 SQL 测试尚未执行。
+- Production migration、Production schema 和真实交付仍未执行或验证；当前仅为隔离本地回放和受保护 Preview。
+- 隔离空库 replay、Four-role、Property Outreach 与 Agent Case Progress SQL 测试已通过；这不构成 Production 授权。
 - Property invitation delivery 需要批准并配置 `PROPERTY_INVITE_DELIVERY_WEBHOOK`，可选 `PROPERTY_INVITE_DELIVERY_TOKEN`。
 - 最小页面不是完整 Dashboard/CRM；Property response UI、Admin assignment form 和 Agent recommendation form 仍需下一实施阶段完善。
 - SSR HttpOnly cookie session 尚未取代当前 bearer-token browser session；需 Engineering 独立评审。
 - 需要刷新真实部署环境生成的数据库类型；当前类型为候选契约手工同步。
+
+## P0 增量候选（2026-08-16）
+
+- `20260816190000_four_role_rental_case_p0_candidate.sql` 保持 `DEPLOYMENT PAUSED`，增加 Case/Inquiry 幂等键、recommendation-level Tenant feedback、选中快照事实和通知 outbox。
+- Rental Case 创建响应返回稳定 `caseId`，旧 Inquiry 详情只转向 `/cases/{caseId}`；不会维持第二套可写详情契约。
+- 七次核心 handoff 通过 append-only status history 触发 durable notification，未配置 delivery provider 时明确记录 `manual_required`，不得推断邮件已发送。
+- Property invitation 自动投递未配置或失败时返回 partial success；Registration 保留，Agent/Admin 走人工安全交付。
+- Agent、Property、Admin 页面是第一个客户所需的最小 Case 操作面，不构成完整 CRM 或 Dashboard。
 
 ## Pending migration 顺序
 

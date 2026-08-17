@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase/client';
+import { authCallbackUrl, safeAuthNext } from '@/lib/auth/redirects';
+import { AuthShell } from '@/components/auth-shell';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -30,20 +32,38 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const returnPath = () => { const value = new URLSearchParams(window.location.search).get('next'); return value?.startsWith('/') && !value.startsWith('//') ? value : '/'; };
+  const [confirmationRequired, setConfirmationRequired] = useState(false);
+  const [retryAfter, setRetryAfter] = useState(0);
+  const returnPath = () => safeAuthNext(new URLSearchParams(window.location.search).get('next'));
+
+  useEffect(() => {
+    if (retryAfter <= 0) return;
+    const timer = window.setInterval(() => {
+      setRetryAfter((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAfter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (loading || retryAfter > 0) return;
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
     }
     setLoading(true);
-    const { error } = await signUp(email, password, displayName);
+    const result = await signUp(email, password, displayName);
     setLoading(false);
-    if (error) {
-      setError(error);
+    if (result.error) {
+      if (/email rate limit exceeded/i.test(result.error)) {
+        setRetryAfter(60);
+        setError('Too many confirmation emails were requested from this Preview. Please wait before trying again. If you already registered, use Sign In or password recovery instead.');
+      } else {
+        setError(result.error);
+      }
+    } else if (result.confirmationRequired) {
+      setConfirmationRequired(true);
     } else {
       router.push(returnPath());
     }
@@ -54,7 +74,7 @@ export default function SignUpPage() {
     setGoogleLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/sign-in?next=${encodeURIComponent(returnPath())}` },
+      options: { redirectTo: authCallbackUrl(window.location.origin, returnPath()) },
     });
     if (error) {
       setError(error.message);
@@ -63,25 +83,18 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 bg-gradient-to-b from-accent/30 to-background">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <span className="font-serif text-2xl font-bold">
-              Manhattan<span className="text-primary">Living</span>
-            </span>
-          </Link>
-          <h1 className="font-serif text-2xl font-bold mb-2">Create an Account</h1>
-          <p className="text-muted-foreground text-sm">Sign up to list properties and save your favorite apartments.</p>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-border shadow-lg p-6 space-y-4">
+    <AuthShell eyebrow="Start your NYC search" title="Create your account" description="Save buildings, compare options, and keep your rental request moving.">
+        <div className="space-y-4">
           {error && (
             <div className="bg-destructive/10 text-destructive text-sm rounded-lg p-3 border border-destructive/20">
               {error}
+            </div>
+          )}
+          {confirmationRequired && (
+            <div role="status" className="rounded-lg border border-primary/25 bg-accent p-4 text-sm leading-6 text-foreground">
+              <p className="font-semibold">Check your email before signing in.</p>
+              <p className="mt-1 text-muted-foreground">Open the newest confirmation link. If you already had an account, use its existing password instead of registering again.</p>
+              <Button asChild variant="outline" className="mt-3 w-full"><Link href={`/sign-in?next=${encodeURIComponent(returnPath())}`}>Go to Sign In</Link></Button>
             </div>
           )}
 
@@ -124,8 +137,8 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating account...</>) : ('Create Account')}
+            <Button type="submit" className="w-full" size="lg" disabled={loading || retryAfter > 0}>
+              {loading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating account...</>) : retryAfter > 0 ? `Try again in ${retryAfter}s` : ('Create Account')}
             </Button>
           </form>
 
@@ -134,7 +147,6 @@ export default function SignUpPage() {
             <Link href="/sign-in" className="text-primary font-medium hover:underline">Sign in</Link>
           </p>
         </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 }
