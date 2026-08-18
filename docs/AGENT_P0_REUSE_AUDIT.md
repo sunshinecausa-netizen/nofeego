@@ -1,7 +1,7 @@
 # Agent P0 reuse audit
 
-Date: 2026-08-18  
-Baseline: `a5649b2b58f79e9dc4dfb3f98465f8d17435b893`  
+Date: 2026-08-18
+Baseline: `a5649b2b58f79e9dc4dfb3f98465f8d17435b893`
 Branch: `codex/agent-features-next`
 
 ## Source-of-truth conclusion
