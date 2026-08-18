@@ -59,7 +59,7 @@ async function fetchAllPublicViewRows<T>(endpoint: URL, headers: Record<string, 
   }
 }
 
-function publicBuilding(row: Record<string, unknown>): Building {
+export function projectPublicBuilding(row: Record<string, unknown>): Building {
   return {
     id: String(row.id), slug: String(row.slug), name: String(row.name), address: String(row.address), city: String(row.city), state: String(row.state),
     zip_code: row.zip_code as string | null, latitude: row.latitude as number | null, longitude: row.longitude as number | null,
@@ -67,14 +67,8 @@ function publicBuilding(row: Record<string, unknown>): Building {
     floors: (row.stories as number | null) ?? null, hero_image: row.hero_image as string | null, hero_image_url: row.hero_image_url as string | null,
     gallery: row.gallery as string[] | null, nearby_subway: row.nearby_subway as string[] | null, borough: row.borough as string | null,
     neighborhood: row.neighborhood as string | null, stories: row.stories as number | null, total_units: row.total_units as number | null,
-    is_active: true, updated_at: String(row.updated_at), neighborhood_id: null, description: null, seo_title: null, seo_description: null,
-    faqs: null, nearby_grocery: null, nearby_restaurants: null, transportation: null, neighborhood_summary: null, contact_email: null,
-    contact_phone: null, building_id: null, building_name: null, street_address: null, building_class: null, luxury: null, pet_friendly: null,
-    official_building_website: null, apply_online_url: null, virtual_tour_url: null, building_phone: null, building_leasing_email: null,
-    management_company: null, developer: null, current_owner: null, source_url: null, last_verified_date: null, search_keywords: [], google_place_id: null,
-    logo_url: null, gallery_folder: null, partnership_status: 'Not Contacted', leasing_contact_name: null, leasing_phone: null, data_confidence: 'Low',
-    ai_summary: null, updated_by: null, created_at: String(row.updated_at), neighborhoods: null,
-  };
+    is_active: true, updated_at: String(row.updated_at),
+  } as Building;
 }
 
 export async function fetchPublicBuildingBySlug(slug: string): Promise<Building | null> {
@@ -83,7 +77,7 @@ export async function fetchPublicBuildingBySlug(slug: string): Promise<Building 
   if (!url || !anonKey) throw new Error('Public building data is not configured.');
   const endpoint = new URL('/rest/v1/public_buildings', url); endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('slug', `eq.${slug}`); endpoint.searchParams.set('limit', '1');
   const response = await fetch(endpoint, { cache: 'no-store', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
-  if (!response.ok) throw new Error('Unable to load building.'); const rows = await response.json() as Record<string, unknown>[]; return rows[0] ? publicBuilding(rows[0]) : null;
+  if (!response.ok) throw new Error('Unable to load building.'); const rows = await response.json() as Record<string, unknown>[]; return rows[0] ? projectPublicBuilding(rows[0]) : null;
 }
 
 export async function fetchPublicBuildingInventoryBySlug(slug: string): Promise<BuildingInventorySummary> {
@@ -127,7 +121,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     candidateRows = await response.json() as Record<string, unknown>[];
     unfilteredTotal = Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   }
-  const candidateBuildings = candidateRows.filter(isPublicCatalogRow).map(publicBuilding);
+  const candidateBuildings = candidateRows.filter(isPublicCatalogRow).map(projectPublicBuilding);
   const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*'); availability.searchParams.set('order', 'building_slug.asc');
   const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*'); rentSummary.searchParams.set('order', 'building_slug.asc');
   const unitCounts = new URL('/rest/v1/public_building_unit_counts', url); unitCounts.searchParams.set('select', '*'); unitCounts.searchParams.set('order', 'building_slug.asc');
