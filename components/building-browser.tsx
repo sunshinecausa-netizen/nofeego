@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, MouseEvent as ReactMouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, GitCompareArrows, List, Map, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -103,9 +103,25 @@ type Props = {
   initialResult: BuildingsPageResult;
   initialError?: string | null;
   mode: 'buildings' | 'search';
+  routeBase?: string;
+  persistentParams?: Record<string, string>;
+  notice?: ReactNode;
+  renderCard?: (props: BuildingBrowserCardProps) => ReactNode;
 };
 
-export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters, initialResult, initialError = null, mode }: Props) {
+export type BuildingBrowserCardProps = {
+  building: Building;
+  inventory: BuildingsPageResult['inventoryByBuilding'][string];
+  compared: boolean;
+  favorited: boolean;
+  highlighted: boolean;
+  onCompareChange: (building: Building, checked: boolean) => void;
+  onFavoriteChange: (building: Building, checked: boolean) => void;
+  onHover: (id: string | null) => void;
+  onSelect: (id: string) => void;
+};
+
+export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters, initialResult, initialError = null, mode, routeBase, persistentParams, notice, renderCard }: Props) {
   const locale = useLocale();
   const { favoriteIds: favoriteBuildingIds, compareIds, toggleFavorite: updateFavorite, toggleCompare: updateCompare, replaceCompare, clearCompare, error: accountError } = useTenantData();
   const starting = useMemo(() => ({
@@ -145,7 +161,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const [hoveredBorough, setHoveredBorough] = useState<string>(starting.boroughs[0] ?? 'Manhattan');
   const [searchSubmitting, setSearchSubmitting] = useState(false);
   const error = initialError;
-  const route = mode === 'search' ? '/search' : '/';
+  const route = routeBase ?? (mode === 'search' ? '/search' : '/');
   const pageCount = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
   const activeFilterCount = [query, moveInFlex.some((value) => DATE_SPECIFIC_MOVE_IN_OPTIONS.has(value)) ? moveInDate : ''].filter(Boolean).length + priceRanges.length + bedrooms.length + bathrooms.length + moveInFlex.length + boroughs.length + neighborhoods.length + amenities.length;
   const comparedBuildings = useMemo(() => result.buildings.filter((building) => compareIds.includes(building.id)), [compareIds, result.buildings]);
@@ -217,6 +233,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
 
   function href(page: number, values: BuildingFilters = starting) {
     const params = new URLSearchParams();
+    Object.entries(persistentParams ?? {}).forEach(([key, value]) => { if (value) params.set(key, value); });
     if (new URLSearchParams(window.location.search).get('publicSnapshot') === 'production_public_snapshot') params.set('publicSnapshot', 'production_public_snapshot');
     if (new URLSearchParams(window.location.search).get('visualFixture') === 'reference') params.set('visualFixture', 'reference');
     if (values.search?.trim()) params.set('q', values.search.trim());
@@ -368,21 +385,20 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     if (!selectedBuilding) return batch;
     return [selectedBuilding, ...batch.filter((building) => building.id !== selectedBuilding.id)].slice(0, visibleCardCount);
   }, [mode, result.buildings, selectedBuildingId, visibleCardCount]);
-  const resultCards = visibleBuildings.map((building) => (
-    <BuildingCard
-      key={building.id}
-      building={building}
-      inventory={result.inventoryByBuilding[building.id]}
-      compared={comparedBuildings.some((item) => item.id === building.id)}
-      favorited={favoriteBuildingIds.includes(building.id)}
-      highlighted={selectedBuildingId === building.id || hoveredBuildingId === building.id}
-      onCompareChange={toggleCompare}
-      onFavoriteChange={toggleFavorite}
-      onHover={setHoveredBuildingId}
-      onSelect={focusBuildingFromCard}
-      autoLoadStreetView
-    />
-  ));
+  const resultCards = visibleBuildings.map((building) => {
+    const cardProps: BuildingBrowserCardProps = {
+      building,
+      inventory: result.inventoryByBuilding[building.id],
+      compared: comparedBuildings.some((item) => item.id === building.id),
+      favorited: favoriteBuildingIds.includes(building.id),
+      highlighted: selectedBuildingId === building.id || hoveredBuildingId === building.id,
+      onCompareChange: toggleCompare,
+      onFavoriteChange: toggleFavorite,
+      onHover: setHoveredBuildingId,
+      onSelect: focusBuildingFromCard,
+    };
+    return renderCard ? <div key={building.id} className="min-w-0">{renderCard(cardProps)}</div> : <BuildingCard key={building.id} {...cardProps} autoLoadStreetView />;
+  });
 
   const mapItems = useMemo(() => {
     return result.buildings.map((building) => ({
@@ -417,6 +433,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
 
   return (
     <div className="flex min-h-screen flex-col bg-background md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden">
+      {notice}
       <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view"><Button type="button" variant={mobileView === 'map' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('map')}><Map className="mr-2 h-4 w-4" />Map</Button><Button type="button" variant={mobileView === 'list' ? 'default' : 'ghost'} className="h-11 flex-1" onClick={() => setMobileView('list')}><List className="mr-2 h-4 w-4" />List</Button></div>
       <div className="min-h-0 flex-1 md:grid md:grid-cols-2">
         <section className={`${mobileView === 'list' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-border bg-muted/25 md:flex`} aria-label="Building results list">

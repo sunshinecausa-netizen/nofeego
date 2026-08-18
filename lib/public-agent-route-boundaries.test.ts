@@ -5,14 +5,14 @@ import test from 'node:test';
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
-test('Agent catalog is private, role-gated, and has no public v1 route', () => {
+test('Agent-only inventory overlay is private and role-gated', () => {
   assert.equal(existsSync(join(process.cwd(), 'app/api/v1/buildings/catalog/route.ts')), false);
-  const route = source('app/api/agent/catalog/route.ts');
+  const route = source('app/api/agent/inventory/route.ts');
   assert.match(route, /authenticateAccountRequest\(request\)/);
   assert.match(route, /rpc\('current_account_role'\)/);
   assert.match(route, /role !== 'agent'/);
-  assert.match(route, /Cache-Control': 'private/);
-  assert.match(source('components/agent-home-browser.tsx'), /\/api\/agent\/catalog/);
+  assert.match(route, /agent_authorized_inventory/);
+  assert.match(source('components/agent-home-browser.tsx'), /\/api\/agent\/inventory/);
 });
 
 test('public routes do not import Agent components or Agent catalog APIs', () => {
@@ -25,12 +25,16 @@ test('public routes do not import Agent components or Agent catalog APIs', () =>
   assert.match(browser, />List<\/Button>/);
   const publicCard = source('components/building-result-card.tsx');
   assert.doesNotMatch(publicCard, /actions\?|showSaveAndCompare|AgentBuildingCard/);
-  assert.match(source('app/agent/_components/agent-building-card.tsx'), /<BuildingCard[\s\S]*\{actions\}/);
+  const agentHome = source('components/agent-home-browser.tsx');
+  assert.match(agentHome, /<BuildingBrowser/);
+  assert.match(agentHome, /<BuildingCard \{\.\.\.card\}/);
 });
 
 test('Agent inventory authorization never filters the public catalog query', () => {
   const publicQuery = source('lib/public-buildings.ts');
   assert.doesNotMatch(publicQuery, /agent_building_inventory_access|rental_cases|tenant_interest/);
+  assert.match(source('app/agent/page.tsx'), /fetchBuildingsPage/);
   const agentHome = source('components/agent-home-browser.tsx');
-  assert.match(agentHome, /combinePublicCatalogWithInventoryAccess/);
+  assert.match(agentHome, /inventoryByBuilding\.get\(card\.building\.id\)/);
+  assert.match(agentHome, /if \(!authorizedBuilding \|\| !inventory\) return <BuildingCard/);
 });
