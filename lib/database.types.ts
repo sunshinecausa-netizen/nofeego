@@ -100,6 +100,7 @@ export interface Database {
       property_organizations: Table<{ id: string; name: string; created_at: string }>;
       property_organization_members: Table<{ organization_id: string; profile_id: string; created_at: string }>;
       property_building_access: Table<{ organization_id: string; building_id: string; granted_by: string; created_at: string }>;
+      agent_building_inventory_access: Table<{ agent_id: string; building_id: string; granted_by: string; status: 'active'|'revoked'; expires_at: string|null; created_at: string; updated_at: string }>;
       property_contacts: Table<{
         id: string; building_id: string; organization_id: string | null; name: string | null; role_title: string | null;
         purpose: 'availability'|'leasing'|'registration'|'tour'|'application'|'general'|null;

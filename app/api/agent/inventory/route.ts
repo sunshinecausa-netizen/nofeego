@@ -22,7 +22,14 @@ export async function GET(request: Request) {
     .order('updated_at', { ascending: false });
   if (casesError) return accountError('INVENTORY_CASE_SCOPE_FAILED', 'Inventory could not be loaded. Please try again.', 500);
 
-  const authorizedBuildingIds = [...new Set((cases ?? []).map((item) => item.building_id).filter((value): value is string => Boolean(value)))];
+  const { data: inventoryAccess, error: accessScopeError } = await auth.supabase
+    .from('agent_building_inventory_access')
+    .select('building_id,status,expires_at')
+    .eq('agent_id', auth.user.id)
+    .eq('status', 'active');
+  if (accessScopeError) return accountError('INVENTORY_ACCESS_SCOPE_FAILED', 'Inventory permissions could not be loaded.', 500);
+  const now = Date.now();
+  const authorizedBuildingIds = [...new Set((inventoryAccess ?? []).filter((item) => !item.expires_at || Date.parse(item.expires_at) > now).map((item) => item.building_id))];
   const requestedBuildingId = new URL(request.url).searchParams.get('building');
   if (requestedBuildingId && !authorizedBuildingIds.includes(requestedBuildingId)) {
     return accountError('INVENTORY_BUILDING_FORBIDDEN', 'You do not have permission to view this inventory.', 403);

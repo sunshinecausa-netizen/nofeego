@@ -16,6 +16,35 @@ const ALLOWED_AMENITIES = new Set(['Pets Allowed', 'Small Dogs Allowed', 'Large 
 
 const PUBLIC_VIEW_PAGE_SIZE = 1000;
 
+export function isPublicCatalogRow(row: Record<string, unknown>) {
+  const slug = String(row.slug ?? '').trim().toLowerCase();
+  const name = String(row.name ?? '').trim().toLowerCase();
+  const address = String(row.address ?? '').trim().toLowerCase();
+  return !(
+    slug.startsWith('preview-')
+    || slug.startsWith('test-')
+    || slug.endsWith('-test')
+    || slug.includes('-e2e-')
+    || name.startsWith('preview ')
+    || name.startsWith('test ')
+    || name.includes(' e2e ')
+    || address.includes('preview test')
+    || address.includes('preview river')
+    || address.includes('test way')
+  );
+}
+
+function excludePreviewRows(endpoint: URL) {
+  endpoint.searchParams.append('slug', 'not.ilike.preview-*');
+  endpoint.searchParams.append('slug', 'not.ilike.test-*');
+  endpoint.searchParams.append('slug', 'not.ilike.*-test');
+  endpoint.searchParams.append('slug', 'not.ilike.*-e2e-*');
+  endpoint.searchParams.append('name', 'not.ilike.preview *');
+  endpoint.searchParams.append('name', 'not.ilike.test *');
+  endpoint.searchParams.append('address', 'not.ilike.*preview*');
+  endpoint.searchParams.append('address', 'not.ilike.*test way*');
+}
+
 async function fetchAllPublicViewRows<T>(endpoint: URL, headers: Record<string, string>): Promise<T[]> {
   const rows: T[] = [];
   for (let offset = 0; ; offset += PUBLIC_VIEW_PAGE_SIZE) {
@@ -49,6 +78,7 @@ function publicBuilding(row: Record<string, unknown>): Building {
 }
 
 export async function fetchPublicBuildingBySlug(slug: string): Promise<Building | null> {
+  if (!isPublicCatalogRow({ slug, name: '', address: '' })) return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) throw new Error('Public building data is not configured.');
   const endpoint = new URL('/rest/v1/public_buildings', url); endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('slug', `eq.${slug}`); endpoint.searchParams.set('limit', '1');
@@ -73,6 +103,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
   if (!url || !anonKey) throw new Error('Public building data is not configured.');
   const endpoint = new URL('/rest/v1/public_buildings', url);
   endpoint.searchParams.set('select', '*'); endpoint.searchParams.set('state', 'in.(NY,NJ)'); endpoint.searchParams.set('order', 'name.asc,id.asc');
+  excludePreviewRows(endpoint);
   const hasRentFilters = priceRanges.length > 0 || bedrooms.length > 0;
   const term = search.trim().replace(/[,%()]/g, ' ').replace(/\s+/g, ' ').slice(0, 100);
   if (term) endpoint.searchParams.set('or', `(name.ilike.*${term}*,address.ilike.*${term}*,neighborhood.ilike.*${term}*,borough.ilike.*${term}*)`);
@@ -96,7 +127,7 @@ export async function fetchBuildingsPage({ page, pageSize, search = '', boroughs
     candidateRows = await response.json() as Record<string, unknown>[];
     unfilteredTotal = Number.parseInt(response.headers.get('content-range')?.split('/')[1] ?? '0', 10) || 0;
   }
-  const candidateBuildings = candidateRows.map(publicBuilding);
+  const candidateBuildings = candidateRows.filter(isPublicCatalogRow).map(publicBuilding);
   const availability = new URL('/rest/v1/public_building_availability', url); availability.searchParams.set('select', '*'); availability.searchParams.set('order', 'building_slug.asc');
   const rentSummary = new URL('/rest/v1/public_building_rent_summary', url); rentSummary.searchParams.set('select', '*'); rentSummary.searchParams.set('order', 'building_slug.asc');
   const unitCounts = new URL('/rest/v1/public_building_unit_counts', url); unitCounts.searchParams.set('select', '*'); unitCounts.searchParams.set('order', 'building_slug.asc');

@@ -22,11 +22,45 @@ export type AgentInventoryPayload = {
 };
 
 export type Freshness = 'Recently verified'|'Needs confirmation'|'Outdated'|'Property reply pending';
+export type FloorPlanAvailability = { key:string; label:string; availableUnits:number; grossMin:number|null; grossMax:number|null; netMin:number|null; earliestAvailableDate:string|null; concessions:string[]; leaseTerms:number[]; freshness:Freshness; lastVerified:string|null; sourceName:string|null };
 
 export function latestSnapshots(snapshots:InventorySnapshot[]) {
   const byUnit = new Map<string,InventorySnapshot>();
   for (const snapshot of snapshots) if (!byUnit.has(snapshot.unit_id)) byUnit.set(snapshot.unit_id,snapshot);
   return [...byUnit.values()];
+}
+
+export function combinePublicCatalogWithInventoryAccess(publicBuildings:Building[],authorizedBuildings:InventoryBuilding[]){
+  const authorizedIds=new Set(authorizedBuildings.map(building=>building.id));
+  return [...new Map(publicBuildings.map(building=>[building.id,building])).values()].map(building=>({building,hasInventoryAccess:authorizedIds.has(building.id)}));
+}
+
+export function currentAvailableSnapshots(snapshots:InventorySnapshot[], now=Date.now()) {
+  return latestSnapshots(snapshots).filter(snapshot=>
+    snapshot.inventory_status==='available'
+    && (!snapshot.valid_until||Date.parse(snapshot.valid_until)>now)
+    && inventoryFreshness(snapshot,false,now)!=='Outdated'
+  );
+}
+
+export function floorPlanAvailability(units:InventoryUnit[],snapshots:InventorySnapshot[],sources:InventorySource[],now=Date.now()):FloorPlanAvailability[]{
+  const unitById=new Map(units.map(unit=>[unit.id,unit]));
+  const sourceById=new Map(sources.map(source=>[source.id,source]));
+  const groups=new Map<string,{label:string;snapshots:InventorySnapshot[];units:InventoryUnit[]}>();
+  for(const snapshot of currentAvailableSnapshots(snapshots,now)){
+    const unit=unitById.get(snapshot.unit_id);if(!unit)continue;
+    const bedroomLabel=unit.bedrooms===0?'Studio':unit.bedrooms===1?'1 Bed':unit.bedrooms!=null?`${unit.bedrooms} Beds`:'Floor Plan';
+    const label=unit.floorplan_name||bedroomLabel,key=unit.floorplan_name||`bedrooms:${unit.bedrooms??'unknown'}`;
+    const group=groups.get(key)??{label,snapshots:[],units:[]};group.snapshots.push(snapshot);group.units.push(unit);groups.set(key,group);
+  }
+  return [...groups.entries()].map(([key,group])=>{
+    const gross=group.snapshots.flatMap(item=>item.rent==null?[]:[item.rent]),net=group.snapshots.flatMap(item=>item.net_effective_rent==null?[]:[item.net_effective_rent]);
+    const dates=group.snapshots.flatMap(item=>item.available_date?[item.available_date]:[]).sort();
+    const concessions=[...new Set(group.snapshots.flatMap(item=>item.concession_text?[item.concession_text]:[]))];
+    const leaseTerms=[...new Set(group.units.flatMap(item=>item.lease_term==null?[]:[item.lease_term]))].sort((a,b)=>a-b);
+    const latest=[...group.snapshots].sort((a,b)=>b.captured_at.localeCompare(a.captured_at))[0];const source=latest?.source_id?sourceById.get(latest.source_id):undefined;
+    return {key,label:group.label,availableUnits:group.snapshots.length,grossMin:gross.length?Math.min(...gross):null,grossMax:gross.length?Math.max(...gross):null,netMin:net.length?Math.min(...net):null,earliestAvailableDate:dates[0]??null,concessions,leaseTerms,freshness:inventoryFreshness(latest,false,now),lastVerified:source?.last_verified_at??latest?.captured_at??null,sourceName:source?.source_name??source?.source_type??null};
+  }).sort((a,b)=>a.label.localeCompare(b.label));
 }
 
 export function agentBuildingProjection(building:InventoryBuilding):Building {
@@ -42,8 +76,7 @@ export function agentBuildingProjection(building:InventoryBuilding):Building {
 
 export function agentInventorySummary(buildingId:string,units:InventoryUnit[],snapshots:InventorySnapshot[]):BuildingInventorySummary {
   const unitById=new Map(units.filter(unit=>unit.building_id===buildingId).map(unit=>[unit.id,unit]));
-  const current=latestSnapshots(snapshots.filter(snapshot=>snapshot.building_id===buildingId))
-    .filter(snapshot=>snapshot.inventory_status==='available');
+  const current=currentAvailableSnapshots(snapshots.filter(snapshot=>snapshot.building_id===buildingId));
   const minimums:Partial<Record<0|1|2|3,number>>={};
   const counts:Partial<Record<0|1|2|3,number>>={};
   for(const snapshot of current){

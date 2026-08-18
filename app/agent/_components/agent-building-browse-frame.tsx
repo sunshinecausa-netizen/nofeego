@@ -15,7 +15,7 @@ type Props = {
   children?: ReactNode;
 };
 
-export function BuildingBrowseFrame({ mobileView, onMobileViewChange, filters, resultCount, list, map, notice, children }: Props) {
+export function AgentBuildingBrowseFrame({ mobileView, onMobileViewChange, filters, resultCount, list, map, notice, children }: Props) {
   return <div className="flex min-h-screen flex-col bg-background md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden">
     {notice}
     <div className="flex shrink-0 border-b border-border bg-white p-2 md:hidden" role="group" aria-label="Choose map or list view">
