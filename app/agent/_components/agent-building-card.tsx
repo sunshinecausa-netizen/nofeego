@@ -12,5 +12,8 @@ type Props = {
 };
 
 export function AgentBuildingCard({ building, inventory, actions }: Props) {
-  return <BuildingCard building={building} inventory={inventory} showSaveAndCompare={false} autoLoadStreetView actions={actions} />;
+  return <div className="space-y-2">
+    <BuildingCard building={building} inventory={inventory} autoLoadStreetView />
+    <div className="rounded-xl border bg-white p-2 shadow-sm">{actions}</div>
+  </div>;
 }

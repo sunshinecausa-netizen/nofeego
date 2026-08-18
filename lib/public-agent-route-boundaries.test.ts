@@ -23,6 +23,9 @@ test('public routes do not import Agent components or Agent catalog APIs', () =>
   const browser = source('components/building-browser.tsx');
   assert.doesNotMatch(browser, /AgentBuildingBrowseFrame|building-browse-frame/);
   assert.match(browser, />List<\/Button>/);
+  const publicCard = source('components/building-result-card.tsx');
+  assert.doesNotMatch(publicCard, /actions\?|showSaveAndCompare|AgentBuildingCard/);
+  assert.match(source('app/agent/_components/agent-building-card.tsx'), /<BuildingCard[\s\S]*\{actions\}/);
 });
 
 test('Agent inventory authorization never filters the public catalog query', () => {
