@@ -105,10 +105,12 @@ export interface Database {
         event_type: string; channel: 'email'|'manual'; status: 'pending'|'delivered'|'manual_required'|'failed';
         dedupe_key: string; deep_link: string; last_error: string | null; created_at: string; delivered_at: string | null;
       }>;
-      property_organizations: Table<{ id: string; name: string; created_at: string }>;
+      property_organizations: Table<{ id: string; name: string; website:string|null;leasing_office_website:string|null;office_hours:string|null;created_at: string }>;
       property_organization_members: Table<{ organization_id: string; profile_id: string; created_at: string }>;
       property_building_access: Table<{ organization_id: string; building_id: string; granted_by: string; created_at: string }>;
       agent_building_inventory_access: Table<{ agent_id: string; building_id: string; granted_by: string; status: 'active'|'revoked'; expires_at: string|null; created_at: string; updated_at: string }>;
+      application_policies: Table<{building_id:string;application_url:string|null;source_id:string|null;last_verified_at:string|null;verification_expires_at:string|null;created_at:string;updated_at:string}>;
+      unit_fees: Table<{id:string;unit_id:string;fee_type:string;amount:number|null;currency:string;description:string|null;is_mandatory:boolean;source_id:string|null;last_verified_at:string|null;valid_until:string|null;created_at:string;updated_at:string}>;
       property_contacts: Table<{
         id: string; building_id: string; organization_id: string | null; name: string | null; role_title: string | null;
         purpose: 'availability'|'leasing'|'registration'|'tour'|'application'|'general'|null;
@@ -236,6 +238,7 @@ export interface Database {
       submit_roommate_interest_mvp: { Args: { payload: Json }; Returns: Json };
       create_roommate_rental_lead: { Args: { target_interest_id: string }; Returns: string };
       current_account_role: { Args: Record<string, never>; Returns: string };
+      agent_authorized_inventory: {Args:{p_building_id:string|null};Returns:Json};
       upsert_own_profile: { Args: { p_display_name?: string | null }; Returns: Database['public']['Tables']['profiles']['Row'] };
       admin_set_profile_authorization: { Args: { p_profile_id: string; p_role: string; p_status?: string }; Returns: Database['public']['Tables']['profiles']['Row'] };
       admin_assign_rental_case: { Args: { p_case_id: string; p_agent_id: string }; Returns: Database['public']['Tables']['rental_cases']['Row'] };

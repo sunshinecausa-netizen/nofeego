@@ -8,20 +8,23 @@ export type InventoryBuilding = {
   hero_image:string|null; hero_image_url:string|null; gallery:string[]|null; nearby_subway:string[]|null;
   official_building_website:string|null; management_company:string|null; description:string|null; last_verified_date:string|null; updated_at:string;
 };
-export type InventoryUnit = { id:string; building_id:string; unit_number:string|null; floorplan_name:string|null; unit_type:string|null; bedrooms:number|null; bathrooms:number|null; square_feet:number|null; floor:number|null; lease_term:number|null; status:string; is_active:boolean };
-export type InventorySnapshot = { id:string; building_id:string; unit_id:string; source_id:string|null; rent:number|null; net_effective_rent:number|null; concession_text:string|null; available_date:string|null; inventory_status:string; captured_at:string; valid_until:string|null };
+export type InventoryUnit = { id:string; building_id:string; unit_number:string|null; floorplan_name:string|null; unit_type:string|null; bedrooms:number|null; bathrooms:number|null; square_feet:number|null; floor:number|null; lease_term:number|null; broker_fee:number|null; is_no_fee:boolean|null; status:string; is_active:boolean };
+export type InventorySnapshot = { id:string; building_id:string; unit_id:string; source_id:string|null; rent:number|null; net_effective_rent:number|null; concession_text:string|null; concession_amount:number|null; available_date:string|null; is_no_fee:boolean|null; inventory_status:string; captured_at:string; valid_until:string|null };
 export type InventorySource = { id:string; building_id:string; source_type:string; source_name:string|null; source_url:string; last_verified_at:string|null; verification_status:string|null };
-export type InventoryContact = { id:string; building_id:string; organization_id:string|null; name:string|null; role_title:string|null; purpose:string|null; email:string|null; phone:string|null; website:string|null; preferred_method:string|null; source_note:string|null; last_verified_at:string|null; is_active:boolean; needs_review:boolean; last_contacted_at:string|null; last_successful_contact_at:string|null };
+export type InventoryContact = { id:string; building_id:string; organization_id:string|null; name:string|null; role_title:string|null; purpose:string|null; email:string|null; phone:string|null; website:string|null; preferred_method:string|null; preferred_hours:string|null; source_note:string|null; last_verified_at:string|null; verification_expires_at:string|null; is_active:boolean; needs_review:boolean; last_contacted_at:string|null; last_successful_contact_at:string|null };
+export type InventoryOrganization = {id:string;building_id:string;name:string;website:string|null;leasing_office_website:string|null;office_hours:string|null};
+export type InventoryApplication = {building_id:string;application_url:string|null;last_verified_at:string|null;verification_expires_at:string|null};
+export type InventoryFee = {id:string;unit_id:string;building_id:string;fee_type:string;amount:number|null;currency:string;description:string|null;is_mandatory:boolean;last_verified_at:string|null;valid_until:string|null};
 export type InventoryCase = { id:string; building_id:string|null; status:string; selected_recommendation_id:string|null; updated_at:string };
 export type InventoryOutbox = { id:string; rental_case_id:string; building_id:string|null; status:string; created_at:string; updated_at:string; reply_received_at:string|null; acknowledged_at:string|null };
 export type InventoryRegistration = { id:string; rental_case_id:string; building_id:string; status:string; updated_at:string };
 export type AgentInventoryPayload = {
-  state:'ready'|'no_access'|'no_inventory'; buildings:InventoryBuilding[]; units:InventoryUnit[]; snapshots:InventorySnapshot[]; sources:InventorySource[];
-  propertyAccess:{organization_id:string;building_id:string}[]; organizations:{id:string;name:string}[]; contacts:InventoryContact[];
-  outbox:InventoryOutbox[]; feedback:{rental_case_id:string;decision:string}[]; registrations:InventoryRegistration[]; cases:InventoryCase[];
+  state:'ready'|'no_access'|'no_inventory'; buildingIds:string[];buildings:InventoryBuilding[]; units:InventoryUnit[]; snapshots:InventorySnapshot[]; sources:InventorySource[];
+  organizations:InventoryOrganization[]; contacts:InventoryContact[];applications:InventoryApplication[];fees:InventoryFee[];
+  propertyAccess:{organization_id:string;building_id:string}[];outbox:InventoryOutbox[];feedback:{rental_case_id:string;decision:string}[];registrations:InventoryRegistration[];cases:InventoryCase[];
 };
 
-export type Freshness = 'Recently verified'|'Needs confirmation'|'Outdated'|'Property reply pending';
+export type Freshness = 'Current'|'Aging'|'Stale';
 export type FloorPlanAvailability = { key:string; label:string; availableUnits:number; grossMin:number|null; grossMax:number|null; netMin:number|null; earliestAvailableDate:string|null; concessions:string[]; leaseTerms:number[]; freshness:Freshness; lastVerified:string|null; sourceName:string|null };
 
 export function latestSnapshots(snapshots:InventorySnapshot[]) {
@@ -39,7 +42,7 @@ export function currentAvailableSnapshots(snapshots:InventorySnapshot[], now=Dat
   return latestSnapshots(snapshots).filter(snapshot=>
     snapshot.inventory_status==='available'
     && (!snapshot.valid_until||Date.parse(snapshot.valid_until)>now)
-    && inventoryFreshness(snapshot,false,now)!=='Outdated'
+    && inventoryFreshness(snapshot,false,now)!=='Stale'
   );
 }
 
@@ -90,13 +93,13 @@ export function agentInventorySummary(buildingId:string,units:InventoryUnit[],sn
 }
 
 export function inventoryFreshness(snapshot:InventorySnapshot|undefined, replyPending=false, now=Date.now()):Freshness {
-  if(replyPending) return 'Property reply pending';
-  if(!snapshot) return 'Needs confirmation';
+  void replyPending;
+  if(!snapshot) return 'Stale';
   const captured=Date.parse(snapshot.captured_at);
   const validUntil=snapshot.valid_until?Date.parse(snapshot.valid_until):null;
-  if((validUntil!==null&&validUntil<now)||now-captured>INVENTORY_OUTDATED_DAYS*86_400_000)return 'Outdated';
-  if(now-captured>INVENTORY_RECENT_HOURS*3_600_000)return 'Needs confirmation';
-  return 'Recently verified';
+  if((validUntil!==null&&validUntil<now)||now-captured>INVENTORY_OUTDATED_DAYS*86_400_000)return 'Stale';
+  if(now-captured>INVENTORY_RECENT_HOURS*3_600_000)return 'Aging';
+  return 'Current';
 }
 
 export function money(value:number|null|undefined){return value==null?'Not provided':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(value)}

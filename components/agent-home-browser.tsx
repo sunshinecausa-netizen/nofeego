@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Building2, CalendarDays, ChevronDown, CircleAlert, ExternalLink, Mail, RefreshCw, Search, Send, SlidersHorizontal } from 'lucide-react';
+import { AlertCircle, Building2, CalendarDays, ChevronDown, CircleAlert, RefreshCw, Search, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { AISearchInput } from '@/components/ai-search-input';
 import { BATHROOM_OPTIONS, BEDROOM_OPTIONS, BOROUGHS, MOVE_IN_OPTIONS, MultiSelectMenu, PRICE_RANGES } from '@/components/building-browser';
 import { AgentBuildingBrowseFrame } from '@/app/agent/_components/agent-building-browse-frame';
@@ -14,12 +14,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { accountFetch } from '@/lib/account/client';
 import {
   type AgentInventoryPayload,
-  type InventorySnapshot,
-  type InventoryUnit,
   agentInventorySummary,
   currentAvailableSnapshots,
   combinePublicCatalogWithInventoryAccess,
-  floorPlanAvailability,
   inventoryFreshness,
   latestSnapshots,
   money,
@@ -30,7 +27,7 @@ const AgentMap = dynamic(() => import('@/components/building-map').then((module)
 
 type AttentionItem={caseId:string;status:string;building:{name:string;address:string}|null;title:string;action:string;href:string;updatedAt:string};
 type HomePayload={needsAttention:AttentionItem[];activeCases:unknown[]};
-const FRESHNESS=['All freshness','Recently verified','Needs confirmation','Outdated','Property reply pending'] as const;
+const FRESHNESS=['All freshness','Current','Aging','Stale'] as const;
 
 export function AgentHomeBrowser(){
   const [home,setHome]=useState<HomePayload|null>(null);
@@ -47,8 +44,6 @@ export function AgentHomeBrowser(){
   const [freshness,setFreshness]=useState<string[]>([]);
   const [view,setView]=useState<'list'|'map'>('list');
   const [selectedBuilding,setSelectedBuilding]=useState<string|null>(null);
-  const [busy,setBusy]=useState('');
-  const [notice,setNotice]=useState('');
 
   useEffect(()=>{let active=true;Promise.all([accountFetch<HomePayload>('/api/agent/home'),accountFetch<AgentInventoryPayload>('/api/agent/inventory')]).then(([nextHome,nextInventory])=>{if(active){setHome(nextHome);setInventory(nextInventory)}}).catch((reason:unknown)=>{if(!active)return;const code=reason instanceof Error?reason.message:'ACCOUNT_REQUEST_FAILED';if(code==='AUTH_REQUIRED'){window.location.replace('/agent/sign-in?next=%2Fagent');return}setError(code==='AGENT_REQUIRED'?'Your account does not have active Agent access.':'Agent Home could not be loaded. Please try again.')});return()=>{active=false}},[]);
 
@@ -61,19 +56,15 @@ export function AgentHomeBrowser(){
       const authorizedBuilding=hasInventoryAccess?inventory.buildings.find(item=>item.id===building.id):undefined;
       const snapshots=authorizedBuilding?latestSnapshots(inventory.snapshots.filter(item=>item.building_id===building.id)):[];
       const units=authorizedBuilding?inventory.units.filter(item=>item.building_id===building.id):[];
-      const relatedCases=inventory.cases.filter(item=>item.building_id===building.id);
-      const outbox=authorizedBuilding?inventory.outbox.find(item=>item.building_id===building.id):undefined;
-      const currentFreshness=inventoryFreshness(snapshots[0],Boolean(outbox&&!outbox.reply_received_at&&['draft','approved','queued','sent','manual_required'].includes(outbox.status)));
-      return {building,projection:building,summary:authorizedBuilding?agentInventorySummary(building.id,units,snapshots):catalog.inventoryByBuilding[building.id],snapshots,units,cases:inventory.cases,relatedCases,currentFreshness,authorized:Boolean(authorizedBuilding),
-        organization:inventory.organizations.find(org=>inventory.propertyAccess.some(access=>access.building_id===building.id&&access.organization_id===org.id)),
+      const currentFreshness=inventoryFreshness(snapshots[0]);
+      return {building,projection:building,summary:authorizedBuilding?agentInventorySummary(building.id,units,snapshots):catalog.inventoryByBuilding[building.id],snapshots,units,currentFreshness,authorized:Boolean(authorizedBuilding),
+        organization:inventory.organizations.find(org=>org.building_id===building.id),
         contacts:inventory.contacts.filter(contact=>contact.building_id===building.id&&contact.is_active&&!contact.needs_review)};
     }).filter(item=>{
       if(freshness.length&&(!item.authorized||!freshness.includes(item.currentFreshness)))return false;
       return true;
     });
   },[catalog,freshness,inventory]);
-
-  async function recommend(snapshot:InventorySnapshot,unit:InventoryUnit|undefined,caseId:string){setBusy(snapshot.id);setNotice('');try{await accountFetch(`/api/agent/cases/${caseId}/recommendations`,{method:'POST',body:JSON.stringify({idempotencyKey:crypto.randomUUID(),buildingId:snapshot.building_id,inventorySnapshotId:snapshot.id})});setNotice(`${unit?.unit_number||unit?.floorplan_name||'Floor plan'} was added to the Rental Case.`)}catch{setNotice('Recommendation was rejected. Confirm the Case and inventory relationship.')}finally{setBusy('')}}
 
   if(!home||!inventory||!catalog)return <div className="flex min-h-[60vh] items-center justify-center">{error?<div role="alert" className="max-w-md text-center"><AlertCircle className="mx-auto h-9 w-9 text-destructive"/><p className="mt-3">{error}</p></div>:<div className="text-center"><RefreshCw className="mx-auto h-7 w-7 animate-spin text-primary"/><p className="mt-3 text-sm text-muted-foreground">Loading the Building Catalog…</p></div>}</div>;
 
@@ -105,17 +96,10 @@ export function AgentHomeBrowser(){
     {home.needsAttention.slice(0,3).map(item=><Link key={item.caseId} href={item.href} className="min-w-[240px] rounded-lg border bg-card px-3 py-1.5 hover:border-primary/40"><p className="truncate text-sm font-semibold">{item.title}</p><p className="truncate text-xs text-muted-foreground">{item.building?.name??'Building review needed'} · {item.action}</p></Link>)}
     {home.needsAttention.length===0&&<p className="text-sm text-muted-foreground">No assigned Cases need action right now.</p>}
   </div></section>;
-  const listContent=cards.length===0?<State title="No buildings match these filters." detail="Clear one or more filters to return to the complete public Building Catalog."/>:<><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{cards.map(item=>{const currentSnapshots=currentAvailableSnapshots(item.snapshots);const plans=floorPlanAvailability(item.units,item.snapshots,inventory.sources.filter(source=>source.building_id===item.building.id));return <div key={item.building.id} className="min-w-0">
-        <AgentBuildingCard building={item.projection} inventory={item.summary} actions={<div className="grid grid-cols-2 gap-2"><Button asChild variant="outline" className="h-10"><Link href={item.authorized?`/agent/inventory/${item.building.id}`:`/buildings/${item.building.slug}`}><Building2 className="mr-2 h-4 w-4"/>View details</Link></Button>{item.authorized&&item.relatedCases[0]?<Button asChild className="h-10"><Link href={`/agent/property-outreach?case=${item.relatedCases[0].id}`}><Mail className="mr-2 h-4 w-4"/>Contact leasing</Link></Button>:<Button asChild className="h-10"><Link href="/agent/cases"><Send className="mr-2 h-4 w-4"/>Request latest</Link></Button>}</div>}/>
-        <details className="group -mt-4 rounded-b-2xl border border-t-0 bg-white px-4 pb-4 pt-6 shadow-sm">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold text-navy"><span>{item.authorized?`Floor plans & units · ${currentSnapshots.length} current`:'Detailed availability not available'}</span><ChevronDown className="h-4 w-4 transition group-open:rotate-180"/></summary>
-          <div className="grid gap-3 border-t pt-3">
-            {!item.authorized?<div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">This Building remains in the complete public Catalog. Unit numbers, internal availability, sources, and Property contacts require explicit Inventory access.</div>:<><div className="grid gap-2 text-xs sm:grid-cols-3"><Metric label="Property" value={item.organization?.name||'Not provided'}/><Metric label="Inventory freshness" value={item.currentFreshness}/><Metric label="Property contact" value={item.contacts[0]?.name||item.contacts[0]?.email||'Not provided'}/></div>{plans.map(plan=><article key={plan.key} className="rounded-xl border p-3"><div className="flex items-center justify-between"><p className="font-semibold">{plan.label}</p><span className="text-xs font-semibold">{plan.availableUnits} {plan.availableUnits===1?'unit':'units'} available</span></div><div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><Metric label="Gross rent" value={plan.grossMin==null?'Not provided':plan.grossMin===plan.grossMax?money(plan.grossMin):`${money(plan.grossMin)}–${money(plan.grossMax)}`}/><Metric label="Net effective" value={plan.netMin==null?'Not provided':`From ${money(plan.netMin)}`}/><Metric label="Earliest available" value={plan.earliestAvailableDate||'Not provided'}/><Metric label="Lease term" value={plan.leaseTerms.length?plan.leaseTerms.map(value=>`${value} months`).join(', '):'Not provided'}/></div><p className="mt-2 text-xs text-muted-foreground">{plan.concessions.join(' · ')||'No current concession'} · {plan.freshness} · Verified {plan.lastVerified?new Date(plan.lastVerified).toLocaleDateString():'not provided'} · {plan.sourceName||'Source not provided'}</p></article>)}{currentSnapshots.map(snapshot=>{const unit=item.units.find(value=>value.id===snapshot.unit_id);const source=snapshot.source_id?inventory.sources.find(value=>value.id===snapshot.source_id):undefined;return <article key={snapshot.id} className="rounded-xl border bg-muted/20 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{unit?.unit_number?`Unit ${unit.unit_number}`:unit?.floorplan_name||'Floor plan'}</p><p className="text-xs text-muted-foreground">{unit?.floorplan_name||unit?.unit_type||'Floor plan not provided'} · {unit?.bedrooms??'—'} bed / {unit?.bathrooms??'—'} bath</p></div><span className="text-xs font-semibold">{inventoryFreshness(snapshot)}</span></div><div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><Metric label="Gross rent" value={money(snapshot.rent)}/><Metric label="Net effective" value={money(snapshot.net_effective_rent)}/><Metric label="Available" value={snapshot.available_date||'Not provided'}/><Metric label="Lease" value={unit?.lease_term?`${unit.lease_term} months`:'Not provided'}/></div><p className="mt-2 text-xs text-muted-foreground">Last verified {source?.last_verified_at?new Date(source.last_verified_at).toLocaleDateString():new Date(snapshot.captured_at).toLocaleDateString()} · {source?.source_name||source?.source_type||'Source not provided'}</p>{snapshot.concession_text&&<p className="mt-2 rounded-md bg-primary/10 px-2 py-1.5 text-xs font-medium text-primary">{snapshot.concession_text}</p>}<select aria-label={`Recommend ${unit?.unit_number||unit?.floorplan_name||'unit'}`} className="mt-3 h-10 w-full rounded-md border bg-background px-3 text-sm" defaultValue="" disabled={busy===snapshot.id} onChange={event=>{if(event.target.value)void recommend(snapshot,unit,event.target.value)}}><option value="">Add to Rental Case / Recommend to Tenant…</option>{item.cases.map(caseItem=><option key={caseItem.id} value={caseItem.id}>Case {caseItem.id.slice(0,8)} · {caseItem.status.replaceAll('_',' ')}</option>)}</select></article>})}{currentSnapshots.length===0&&<div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No current units. Expired inventory is not used as current Availability.</div>}</>}
-            <div className="flex flex-wrap gap-2"><Button asChild size="sm"><Link href={item.authorized?`/agent/inventory/${item.building.id}`:`/buildings/${item.building.slug}`}><ExternalLink className="mr-2 h-4 w-4"/>Full property detail</Link></Button>{item.authorized&&item.relatedCases[0]&&<Button asChild size="sm" variant="outline"><Link href={`/agent/property-outreach?case=${item.relatedCases[0].id}`}><Send className="mr-2 h-4 w-4"/>Request latest availability</Link></Button>}</div>
-          </div>
-        </details>
-      </div>})}</div><Footer embedded/></>;
-  return <AgentBuildingBrowseFrame mobileView={view} onMobileViewChange={setView} notice={<>{attention}{notice&&<p role="status" className="border-b bg-white px-4 py-2 text-sm">{notice}</p>}</>} filters={filterPanel} resultCount={<div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">{cards.length} results</p><p className="hidden text-xs text-muted-foreground sm:block">{inventory.buildings.length} with detailed Inventory · {cards.filter(item=>item.projection.latitude!=null&&item.projection.longitude!=null).length} mapped locations</p></div>} list={listContent} map={<AgentMap buildings={mapItems} selectedBuildingId={selectedBuilding} onBuildingSelect={setSelectedBuilding} onBuildingClose={()=>setSelectedBuilding(null)} className="h-full min-h-0 rounded-none border-0"/>}/>;
+  const listContent=cards.length===0?<State title="No buildings match these filters." detail="Clear one or more filters to return to the complete public Building Catalog."/>:<><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{cards.map(item=>{const currentSnapshots=currentAvailableSnapshots(item.snapshots);const gross=currentSnapshots.flatMap(snapshot=>snapshot.rent==null?[]:[snapshot.rent]);const dates=currentSnapshots.flatMap(snapshot=>snapshot.available_date?[snapshot.available_date]:[]).sort();const verified=item.snapshots[0]?.captured_at;return <div key={item.building.id} className="min-w-0">
+    <AgentBuildingCard building={item.projection} inventory={item.summary} actions={item.authorized?<div className="space-y-2"><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-800"><ShieldCheck className="h-4 w-4"/>Authorized Agent Inventory</div><div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><Metric label="Availability" value={`${currentSnapshots.length} units available`}/><Metric label="Gross rent" value={gross.length?`From ${money(Math.min(...gross))}`:'Not provided'}/><Metric label="Earliest" value={dates[0]||'Not provided'}/><Metric label="Freshness" value={`${item.currentFreshness}${verified?` · ${new Date(verified).toLocaleDateString()}`:''}`}/></div><Button asChild className="h-10 w-full"><Link href={`/agent/inventory/${item.building.id}`}><Building2 className="mr-2 h-4 w-4"/>View authorized availability</Link></Button></div>:<Button asChild variant="outline" className="h-10 w-full"><Link href={`/buildings/${item.building.slug}`}><Building2 className="mr-2 h-4 w-4"/>View public details</Link></Button>}/>
+  </div>})}</div><Footer embedded/></>;
+  return <AgentBuildingBrowseFrame mobileView={view} onMobileViewChange={setView} notice={attention} filters={filterPanel} resultCount={<div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">{cards.length} results</p><p className="hidden text-xs text-muted-foreground sm:block">{inventory.buildings.length} with authorized Inventory · {cards.filter(item=>item.projection.latitude!=null&&item.projection.longitude!=null).length} mapped locations</p></div>} list={listContent} map={<AgentMap buildings={mapItems} selectedBuildingId={selectedBuilding} onBuildingSelect={setSelectedBuilding} onBuildingClose={()=>setSelectedBuilding(null)} className="h-full min-h-0 rounded-none border-0"/>}/>;
 }
 
 function Metric({label,value}:{label:string;value:string}){return <div className="min-w-0 rounded-lg bg-muted/50 px-2.5 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-0.5 truncate font-medium" title={value}>{value}</p></div>}
