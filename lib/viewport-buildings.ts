@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache';
+import { MAX_VIEWPORT_BUILDINGS } from '@/lib/map-viewport-query';
 import type { Building } from '@/lib/types';
 
 export type BuildingInventorySummary = {
@@ -240,7 +241,7 @@ export async function fetchViewportBuildingsPage({
   ...filters
 }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
   const safePage = Math.max(1, Math.floor(page));
-  const safePageSize = Math.min(60, Math.max(1, Math.floor(pageSize)));
+  const safePageSize = Math.min(MAX_VIEWPORT_BUILDINGS, Math.max(1, Math.floor(pageSize)));
   const internalPageSize = 500;
   const first = await fetchBuildingsPage({ page: 1, pageSize: internalPageSize, ...filters });
   const internalPageCount = Math.ceil(first.total / internalPageSize);

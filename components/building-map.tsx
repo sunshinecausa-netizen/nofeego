@@ -28,6 +28,7 @@ export type BuildingMapItem = {
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
 const MIDTOWN_CENTER = { lat: 40.7549, lng: -73.9840 };
+const MAP_PREVIEW_LINEAR_SCALE = Math.sqrt(2 / 3);
 export type MapViewport = { north: number; south: number; east: number; west: number; zoom: number };
 function publicStreetName(address?: string | null) {
   if (!address) return 'Available building';
@@ -105,7 +106,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const areaPolygonsRef = useRef<google.maps.Polygon[]>([]);
   const areaBuildingIdsRef = useRef(new Set<string>());
   const drawingModeRef = useRef(false);
-  const pinnedPreviewIdRef = useRef<string | null>(null);
+  const processedSelectionRequestKeyRef = useRef(selectionRequestKey);
   const markersRef = useRef(new Map<string, google.maps.Marker>());
   const lastCameraRef = useRef<{ center: google.maps.LatLngLiteral; zoom: number } | null>(null);
   const suppressViewportUntilRef = useRef(0);
@@ -124,6 +125,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewError, setStreetViewError] = useState<string | null>(null);
   const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null && building.latitude >= 39 && building.latitude <= 43.5 && building.longitude >= -76 && building.longitude <= -69), [buildings]);
+  const selectionBuildingsRef = useRef(validBuildings);
   const markerPositions = useMemo(() => {
     const coordinateGroups = validBuildings.reduce((groups, building) => {
       const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
@@ -183,10 +185,9 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       gestureHandling: 'greedy',
       scrollwheel: true,
     });
-    const infoWindow = new google.maps.InfoWindow({ headerDisabled: true, maxWidth: 720 });
+    const infoWindow = new google.maps.InfoWindow({ disableAutoPan: true, headerDisabled: true, maxWidth: 720 });
     infoWindowRef.current = infoWindow;
     let closeTimer: number | null = null;
-    let previewTimer: number | null = null;
     let previewRoot: Root | null = null;
     const cancelClose = () => {
       if (closeTimer != null) window.clearTimeout(closeTimer);
@@ -195,15 +196,12 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     const scheduleClose = () => {
       cancelClose();
       closeTimer = window.setTimeout(() => {
-        if (pinnedPreviewIdRef.current) return;
         infoWindow.close();
         previewRoot?.unmount();
         previewRoot = null;
-      }, 180);
-    };
-    const cancelPreview = () => {
-      if (previewTimer != null) window.clearTimeout(previewTimer);
-      previewTimer = null;
+        onBuildingHover?.(null);
+        previewOptionsRef.current.onBuildingClose?.();
+      }, 120);
     };
     googleMapRef.current = map;
     const idleListener = map.addListener('idle', () => {
@@ -248,22 +246,19 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         previewRoot?.unmount();
         const content = document.createElement('div');
         content.className = 'building-map-preview';
-        content.style.cssText = 'width:min(680px,calc(100vw - 72px));overflow:visible;padding:0;';
+        content.style.cssText = 'position:relative;width:min(680px,calc(100vw - 72px));overflow:visible;padding:0;';
+        content.style.setProperty('zoom', String(MAP_PREVIEW_LINEAR_SCALE));
         content.addEventListener('mouseenter', cancelClose);
         content.addEventListener('mouseleave', scheduleClose);
-        previewRoot = createRoot(content);
-        const closePreview = () => {
-          pinnedPreviewIdRef.current = null;
-          infoWindow.close();
-          onBuildingHover?.(null);
-          previewOptionsRef.current.onBuildingClose?.();
-          const rootToUnmount = previewRoot;
-          previewRoot = null;
-          queueMicrotask(() => rootToUnmount?.unmount());
-        };
+        const previewMount = document.createElement('div');
+        const hoverBridge = document.createElement('div');
+        hoverBridge.className = 'building-map-hover-bridge';
+        hoverBridge.setAttribute('aria-hidden', 'true');
+        content.append(previewMount, hoverBridge);
+        previewRoot = createRoot(previewMount);
         const options = previewOptionsRef.current;
         const orderedGroup = [...group].sort((left, right) => Number(right.id === focusedBuildingId) - Number(left.id === focusedBuildingId));
-        previewRoot.render(<div className="space-y-3">{orderedGroup.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted={item.id === focusedBuildingId} variant="map" onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onSelect={(id) => { pinnedPreviewIdRef.current = id; onBuildingSelect?.(id); }} onClose={closePreview} />)}</div>);
+        previewRoot.render(<div className="space-y-3">{orderedGroup.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted={item.id === focusedBuildingId} variant="list" autoLoadStreetView onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onSelect={onBuildingSelect} />)}</div>);
         infoWindow.setContent(content);
         const markerClearance = labels.length * 25 + 24;
         infoWindow.setOptions({ pixelOffset: new google.maps.Size(0, -markerClearance) });
@@ -272,11 +267,20 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
           window.requestAnimationFrame(() => {
             const mapBounds = map.getDiv().getBoundingClientRect();
             const previewBounds = content.getBoundingClientRect();
-            const horizontalOffset = previewBounds.left + previewBounds.width / 2 - (mapBounds.left + mapBounds.width / 2);
-            const verticalOffset = previewBounds.top + previewBounds.height / 2 - (mapBounds.top + mapBounds.height / 2);
-            if (Math.abs(horizontalOffset) > 4 || Math.abs(verticalOffset) > 4) {
+            const safeMargin = 16;
+            const safeLeft = mapBounds.left + safeMargin;
+            const safeRight = mapBounds.right - safeMargin;
+            const safeTop = mapBounds.top + safeMargin;
+            const safeBottom = mapBounds.bottom - safeMargin;
+            let panX = 0;
+            let panY = 0;
+            if (previewBounds.left < safeLeft) panX = previewBounds.left - safeLeft;
+            else if (previewBounds.right > safeRight) panX = previewBounds.right - safeRight;
+            if (previewBounds.top < safeTop) panY = previewBounds.top - safeTop;
+            else if (previewBounds.bottom > safeBottom) panY = previewBounds.bottom - safeBottom;
+            if (Math.abs(panX) > 1 || Math.abs(panY) > 1) {
               suppressViewportUntilRef.current = performance.now() + 1200;
-              map.panBy(horizontalOffset, verticalOffset);
+              map.panBy(panX, panY);
             }
           });
         });
@@ -297,25 +301,15 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         window.setTimeout(openOnce, 600);
       };
 
-      marker.addListener('mouseover', () => {
-        if (drawingModeRef.current) return;
-        if (pinnedPreviewIdRef.current && !group.some((item) => item.id === pinnedPreviewIdRef.current)) return;
-        onBuildingHover?.(group[0].id);
-      });
-      marker.addListener('mouseout', () => {
-        onBuildingHover?.(null);
-      });
       marker.addListener('click', () => {
         if (drawingModeRef.current) return;
         const focusedBuilding = group[0];
-        pinnedPreviewIdRef.current = focusedBuilding.id;
         onBuildingSelect?.(focusedBuilding.id);
-        focusAndOpenPreview(focusedBuilding.id);
+        openPreview(focusedBuilding.id);
       });
       group.forEach((item) => {
         markerRegistry.set(item.id, marker);
         previewOpeners.set(item.id, () => {
-          pinnedPreviewIdRef.current = item.id;
           focusAndOpenPreview(item.id);
         });
       });
@@ -324,7 +318,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     const markerClusterer = new MarkerClusterer({
       map,
       markers,
-      algorithm: new SuperClusterAlgorithm({ radius: 18, maxZoom: 9 }),
+      algorithm: new SuperClusterAlgorithm({ radius: 44, maxZoom: 15 }),
       renderer: {
         render: ({ count, position }) => new google.maps.Marker({
           position,
@@ -349,7 +343,6 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       previewRoot?.unmount();
       previewRoot = null;
       cancelClose();
-      cancelPreview();
       idleListener.remove();
       projectionOverlay.setMap(null);
       streetViewVisibilityListenerRef.current?.remove();
@@ -465,15 +458,22 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
 
   useEffect(() => {
     if (!selectedBuildingId) return;
+    const focusRequested = processedSelectionRequestKeyRef.current !== selectionRequestKey;
+    const markersRebuilt = selectionBuildingsRef.current !== validBuildings;
+    selectionBuildingsRef.current = validBuildings;
+    if (!focusRequested && !markersRebuilt) return;
     const building = validBuildings.find((item) => item.id === selectedBuildingId);
     const map = googleMapRef.current;
     if (!building || !map) return;
-    suppressViewportUntilRef.current = performance.now() + 1200;
-    map.panTo({ lat: building.latitude!, lng: building.longitude! });
-    if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
+    if (focusRequested) {
+      processedSelectionRequestKeyRef.current = selectionRequestKey;
+      suppressViewportUntilRef.current = performance.now() + 1200;
+      map.panTo({ lat: building.latitude!, lng: building.longitude! });
+      if ((map.getZoom() ?? 0) < 16) map.setZoom(16);
+    }
     const openPreview = previewOpenersRef.current.get(selectedBuildingId);
     if (!openPreview) return;
-    const previewTimer = window.setTimeout(openPreview, 250);
+    const previewTimer = window.setTimeout(openPreview, focusRequested ? 250 : 0);
     return () => window.clearTimeout(previewTimer);
   }, [selectedBuildingId, selectionRequestKey, validBuildings]);
 

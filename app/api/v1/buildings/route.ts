@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { MAX_VIEWPORT_BUILDINGS } from '@/lib/map-viewport-query';
 import { fetchViewportBuildingsPage } from '@/lib/viewport-buildings';
 
 const numberParam = (request: NextRequest, name: string) => {
@@ -11,7 +12,7 @@ const numberParam = (request: NextRequest, name: string) => {
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const page = Math.max(1, Math.min(100, Math.floor(numberParam(request, 'page') ?? 1)));
-  const pageSize = Math.max(1, Math.min(60, Math.floor(numberParam(request, 'pageSize') ?? 48)));
+  const pageSize = Math.max(1, Math.min(MAX_VIEWPORT_BUILDINGS, Math.floor(numberParam(request, 'pageSize') ?? 48)));
   const north = numberParam(request, 'north');
   const south = numberParam(request, 'south');
   const east = numberParam(request, 'east');

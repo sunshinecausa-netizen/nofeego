@@ -44,11 +44,25 @@ function destinationUniversity(building: Building) {
   return { name, miles: distanceMiles(building.latitude, building.longitude, latitude, longitude) };
 }
 
-type SubwayRoute = { label: string; minutes: number; distance: string };
-type SubwayCandidate = { label: string; destination: string | google.maps.LatLngLiteral };
-const subwayRouteCache = new Map<string, Promise<SubwayRoute | null>>();
+type TransitRoute = { label: string; minutes: number; distance: string };
+type TransitCandidate = { label: string; destination: string | google.maps.LatLngLiteral };
+const transitRouteCache = new Map<string, Promise<TransitRoute | null>>();
+const NEW_JERSEY_PATH_STATIONS: TransitCandidate[] = [
+  { label: 'Newark Penn PATH', destination: 'Newark Penn PATH station entrance, Newark, NJ' },
+  { label: 'Harrison PATH', destination: 'Harrison PATH station entrance, Harrison, NJ' },
+  { label: 'Journal Square PATH', destination: 'Journal Square PATH station entrance, Jersey City, NJ' },
+  { label: 'Grove Street PATH', destination: 'Grove Street PATH station entrance, Jersey City, NJ' },
+  { label: 'Exchange Place PATH', destination: 'Exchange Place PATH station entrance, Jersey City, NJ' },
+  { label: 'Newport PATH', destination: 'Newport PATH station entrance, Jersey City, NJ' },
+  { label: 'Hoboken PATH', destination: 'Hoboken PATH station entrance, Hoboken, NJ' },
+];
 
-function nearbySubwayCandidates(building: Building): Promise<SubwayCandidate[]> {
+function isNewJerseyBuilding(building: Building) {
+  return building.state?.toUpperCase() === 'NJ';
+}
+
+function nearbyTransitCandidates(building: Building): Promise<TransitCandidate[]> {
+  if (isNewJerseyBuilding(building)) return Promise.resolve(NEW_JERSEY_PATH_STATIONS);
   if (building.nearby_subway?.length) return Promise.resolve(building.nearby_subway.slice(0, 4).map((label) => ({ label, destination: `${label}, subway station, ${building.city}, ${building.state}` })));
   return new Promise((resolve) => {
     const service = new google.maps.places.PlacesService(document.createElement('div'));
@@ -59,14 +73,14 @@ function nearbySubwayCandidates(building: Building): Promise<SubwayCandidate[]> 
   });
 }
 
-function walkingRouteToNearestSubway(building: Building) {
-  const existing = subwayRouteCache.get(building.id);
+function walkingRouteToNearestTransit(building: Building) {
+  const existing = transitRouteCache.get(building.id);
   if (existing) return existing;
   const request = (async () => {
     if (building.latitude == null || building.longitude == null) return null;
     await ensureGoogleMaps();
     const service = new google.maps.DirectionsService();
-    const candidates = await nearbySubwayCandidates(building);
+    const candidates = await nearbyTransitCandidates(building);
     const routes = await Promise.all(candidates.map(async ({ label, destination }) => {
       try {
         const response = await service.route({
@@ -83,23 +97,24 @@ function walkingRouteToNearestSubway(building: Building) {
     const nearest = routes.filter((route): route is NonNullable<typeof route> => route != null).sort((a, b) => a.seconds - b.seconds)[0];
     return nearest ? { label: nearest.label, minutes: nearest.minutes, distance: nearest.distance } : null;
   })();
-  subwayRouteCache.set(building.id, request);
+  transitRouteCache.set(building.id, request);
   return request;
 }
 
 function SubwayWalkingSummary({ building }: { building: Building }) {
   const markerRef = useRef<HTMLSpanElement>(null);
-  const fallback = building.nearby_subway?.[0] ?? 'Calculating nearest subway walk…';
+  const isNewJersey = isNewJerseyBuilding(building);
+  const fallback = isNewJersey ? 'Calculating nearest PATH entrance walk…' : building.nearby_subway?.[0] ?? 'Calculating nearest subway walk…';
   const [summary, setSummary] = useState(fallback);
   useEffect(() => {
     const marker = markerRef.current;
     if (!marker || building.latitude == null || building.longitude == null) return;
     let active = true;
-    const load = () => { void walkingRouteToNearestSubway(building).then((route) => { if (active) setSummary(route ? `${route.label} · ${route.minutes} min walk · ${route.distance}` : 'Nearest subway walking route unavailable'); }); };
+    const load = () => { void walkingRouteToNearestTransit(building).then((route) => { if (active) setSummary(route ? `${route.label} · ${route.minutes} min walk · ${route.distance}` : `Nearest ${isNewJersey ? 'PATH entrance' : 'subway'} walking route unavailable`); }); };
     const observer = new IntersectionObserver((entries) => { if (entries.some((entry) => entry.isIntersecting)) { observer.disconnect(); load(); } }, { rootMargin: '240px' });
     observer.observe(marker);
     return () => { active = false; observer.disconnect(); };
-  }, [building]);
+  }, [building, isNewJersey]);
   return <span ref={markerRef}>{summary}</span>;
 }
 

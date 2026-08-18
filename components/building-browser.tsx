@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import type { MapViewport } from '@/components/building-map';
+import { viewportBuildingLimit } from '@/lib/map-viewport-query';
 import { DeferredBuildingMap } from '@/components/deferred-building-map';
 import { BuildingCard } from '@/components/building-result-card';
 import { Footer } from '@/components/footer';
@@ -128,6 +129,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const [moveInDate, setMoveInDate] = useState(starting.moveInDate);
   const [moveInFlex, setMoveInFlex] = useState<string[]>(starting.moveInFlex);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  const [desktopMapEnabled, setDesktopMapEnabled] = useState(false);
   const [result, setResult] = useState(initialResult);
   const [visibleCardCount, setVisibleCardCount] = useState(12);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -149,6 +151,14 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
   const comparedBuildings = useMemo(() => result.buildings.filter((building) => compareIds.includes(building.id)), [compareIds, result.buildings]);
 
   useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)');
+    const updateDesktopMap = () => setDesktopMapEnabled(media.matches);
+    updateDesktopMap();
+    media.addEventListener('change', updateDesktopMap);
+    return () => media.removeEventListener('change', updateDesktopMap);
+  }, []);
+
+  useEffect(() => {
     const target = loadMoreRef.current;
     if (!target) return;
     const scrollRoot = target.closest<HTMLElement>('[data-results-scroll-root]');
@@ -163,8 +173,10 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     if (mode !== 'buildings') return;
     if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
     viewportTimerRef.current = setTimeout(async () => {
-      const viewportKey = [viewport.north, viewport.south, viewport.east, viewport.west]
+      const pageSize = viewportBuildingLimit(viewport.zoom);
+      const viewportKey = [viewport.north, viewport.south, viewport.east, viewport.west, viewport.zoom]
         .map((value) => value.toFixed(5))
+        .concat(String(pageSize))
         .join(':');
       if (lastViewportRequestRef.current === viewportKey) return;
       lastViewportRequestRef.current = viewportKey;
@@ -172,7 +184,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       const controller = new AbortController();
       viewportRequestRef.current = controller;
       const sequence = ++viewportSequenceRef.current;
-      const params = new URLSearchParams({ north: String(viewport.north), south: String(viewport.south), east: String(viewport.east), west: String(viewport.west), pageSize: '60' });
+      const params = new URLSearchParams({ north: String(viewport.north), south: String(viewport.south), east: String(viewport.east), west: String(viewport.west), pageSize: String(pageSize) });
       if (starting.search.trim()) params.set('q', starting.search.trim());
       starting.boroughs.forEach((value) => params.append('borough', value));
       starting.neighborhoods.forEach((value) => params.append('neighborhood', value));
@@ -287,9 +299,9 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     setMobileView('map');
     window.setTimeout(() => {
       const card = document.querySelector<HTMLElement>(`[data-building-id="${CSS.escape(id)}"][data-card-variant="list"]`);
-      card?.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }, 80);
-  }, [setSelectedBuildingId, setMobileView]);
+  }, []);
 
   const focusBuildingFromCard = useCallback((id: string) => {
     setSelectedBuildingId(id);
@@ -345,7 +357,13 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
     </form>
   );
 
-  const visibleBuildings = mode === 'buildings' ? result.buildings.slice(0, visibleCardCount) : result.buildings;
+  const visibleBuildings = useMemo(() => {
+    if (mode !== 'buildings') return result.buildings;
+    const batch = result.buildings.slice(0, visibleCardCount);
+    const selectedBuilding = selectedBuildingId ? result.buildings.find((building) => building.id === selectedBuildingId) : null;
+    if (!selectedBuilding) return batch;
+    return [selectedBuilding, ...batch.filter((building) => building.id !== selectedBuilding.id)].slice(0, visibleCardCount);
+  }, [mode, result.buildings, selectedBuildingId, visibleCardCount]);
   const resultCards = visibleBuildings.map((building) => (
     <BuildingCard
       key={building.id}
@@ -403,7 +421,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
           <div data-results-scroll-root className="results-list-scrollbar min-h-0 flex-1 overflow-y-auto"><div className="grid grid-cols-1 gap-3 p-3 sm:p-4 lg:grid-cols-2">{resultCards}</div><div ref={loadMoreRef} className="h-px" aria-hidden="true" /><Footer embedded /></div>
         </section>
         <section className={`${mobileView === 'map' ? 'block' : 'hidden'} min-h-[55vh] overflow-hidden md:block md:min-h-0`} aria-label="Building map panel">
-          <DeferredBuildingMap enabled={mobileView === 'map'} buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingClose={() => setSelectedBuildingId(null)} onBuildingHover={setHoveredBuildingId} onViewportChange={updateViewport} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
+          <DeferredBuildingMap enabled={desktopMapEnabled || mobileView === 'map'} buildings={mapItems} selectedBedrooms={starting.bedrooms} hoveredBuildingId={hoveredBuildingId} selectedBuildingId={selectedBuildingId} selectionRequestKey={selectionRequestKey} comparedBuildingIds={comparedBuildings.map((building) => building.id)} favoriteBuildingIds={favoriteBuildingIds} onBuildingSelect={selectBuilding} onBuildingClose={() => setSelectedBuildingId(null)} onBuildingHover={setHoveredBuildingId} onViewportChange={updateViewport} onAreaSelect={selectAreaBuildings} onCompareChange={toggleCompare} onFavoriteChange={toggleFavorite} className="h-full min-h-0 rounded-none border-0" />
         </section>
       </div>
       {compareIds.length > 0 && <>
