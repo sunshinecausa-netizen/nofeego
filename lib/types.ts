@@ -149,6 +149,8 @@ export type Profile = {
   id: string;
   display_name: string | null;
   email: string | null;
+  business_email: string | null;
+  business_email_verified_at: string | null;
   is_admin: boolean;
   account_role: 'tenant' | 'agent' | 'property' | 'admin';
   authorization_status: 'active' | 'pending' | 'suspended';
