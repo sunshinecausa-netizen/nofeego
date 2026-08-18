@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { accountError, authenticateAccountRequest } from '@/lib/account/server';
 import { fetchBuildingsPage } from '@/lib/public-buildings';
+import { canUseProductionPublicSnapshot, getProductionPublicSnapshotPage } from '@/lib/production-public-snapshot';
 
 export async function GET(request: NextRequest) {
   const auth = await authenticateAccountRequest(request);
@@ -12,6 +13,12 @@ export async function GET(request: NextRequest) {
 
   const params = request.nextUrl.searchParams;
   try {
+    if (canUseProductionPublicSnapshot(process.env.VERCEL_ENV ?? process.env.NODE_ENV, params.get('publicSnapshot'))) {
+      return NextResponse.json(getProductionPublicSnapshotPage({
+        page: 1, pageSize: 2000, mapOnly: true, search: params.get('q') ?? '', boroughs: params.getAll('borough'), neighborhoods: params.getAll('neighborhood'),
+        amenities: params.getAll('amenity'), priceRanges: params.getAll('price'), bedrooms: params.getAll('bedrooms'), bathrooms: params.getAll('bathrooms'), moveInDate: params.get('moveInDate') ?? '', moveInFlex: params.getAll('moveInFlex'),
+      }), { headers: { 'Cache-Control': 'private, no-store' } });
+    }
     const result = await fetchBuildingsPage({
       page: 1,
       pageSize: 500,

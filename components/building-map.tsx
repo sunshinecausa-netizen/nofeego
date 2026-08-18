@@ -260,7 +260,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         previewRoot = createRoot(previewMount);
         const options = previewOptionsRef.current;
         const orderedGroup = [...group].sort((left, right) => Number(right.id === focusedBuildingId) - Number(left.id === focusedBuildingId));
-        previewRoot.render(<div className="space-y-3">{orderedGroup.map((item) => <BuildingCard key={item.id} building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted={item.id === focusedBuildingId} variant="list" autoLoadStreetView onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onSelect={onBuildingSelect} />)}</div>);
+        previewRoot.render(<div className="space-y-3">{orderedGroup.map((item) => <div key={item.id}><div className="border-b border-border bg-white px-5 py-3"><p className="text-base font-bold text-navy">{item.name}</p><p className="text-sm text-muted-foreground">{[item.address, item.building.city, item.building.state, item.building.zip_code].filter(Boolean).join(', ')}</p></div><BuildingCard building={item.building} inventory={item.inventory} compared={options.comparedBuildingIds.includes(item.id)} favorited={options.favoriteBuildingIds.includes(item.id)} highlighted={item.id === focusedBuildingId} variant="list" autoLoadStreetView onCompareChange={options.onCompareChange} onFavoriteChange={options.onFavoriteChange} onSelect={onBuildingSelect} /></div>)}</div>);
         infoWindow.setContent(content);
         const markerClearance = labels.length * 25 + 24;
         infoWindow.setOptions({ pixelOffset: new google.maps.Size(0, -markerClearance) });

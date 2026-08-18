@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MAX_VIEWPORT_BUILDINGS } from '@/lib/map-viewport-query';
 import { fetchViewportBuildingsPage } from '@/lib/viewport-buildings';
 import { canUsePublicHomeVisualFixture, getPublicHomeVisualFixture } from '@/lib/public-home-preview-fixtures';
+import { canUseProductionPublicSnapshot, getProductionPublicSnapshotPage } from '@/lib/production-public-snapshot';
 
 const numberParam = (request: NextRequest, name: string) => {
   const raw = request.nextUrl.searchParams.get(name);
@@ -22,6 +23,13 @@ export async function GET(request: NextRequest) {
     && north > south && east > west
     && north <= 42 && south >= 39 && east <= -71 && west >= -76;
   if (!validBounds) return NextResponse.json({ error: 'A valid New York metro map boundary is required.' }, { status: 400 });
+  if (canUseProductionPublicSnapshot(process.env.VERCEL_ENV ?? process.env.NODE_ENV, params.get('publicSnapshot'))) {
+    return NextResponse.json(getProductionPublicSnapshotPage({
+      page, pageSize, search: params.get('q') ?? '', boroughs: params.getAll('borough'), neighborhoods: params.getAll('neighborhood'), amenities: params.getAll('amenity'),
+      priceRanges: params.getAll('price'), bedrooms: params.getAll('bedrooms'), bathrooms: params.getAll('bathrooms'), moveInDate: params.get('moveInDate') ?? '', moveInFlex: params.getAll('moveInFlex'),
+      north, south, east, west,
+    }), { headers: { 'Cache-Control': 'private, no-store' } });
+  }
   if (canUsePublicHomeVisualFixture(process.env.VERCEL_ENV ?? process.env.NODE_ENV, params.get('visualFixture'))) {
     return NextResponse.json(getPublicHomeVisualFixture({ pageSize, north, south, east, west }), {
       headers: { 'Cache-Control': 'private, no-store' },

@@ -1,6 +1,7 @@
 import { BuildingBrowser } from '@/components/building-browser';
 import { fetchBuildingsPage, type BuildingsPageResult } from '@/lib/public-buildings';
 import { canUsePublicHomeVisualFixture, getPublicHomeVisualFixture } from '@/lib/public-home-preview-fixtures';
+import { canUseProductionPublicSnapshot, getProductionPublicSnapshotPage } from '@/lib/production-public-snapshot';
 
 const PAGE_SIZE = 48;
 
@@ -16,6 +17,7 @@ type BuildingsSearchParams = {
   moveInDate?: string;
   moveInFlex?: string | string[];
   visualFixture?: string;
+  publicSnapshot?: string;
 };
 
 export default async function BuildingsPage({ searchParams }: { searchParams: Promise<BuildingsSearchParams> }) {
@@ -37,7 +39,9 @@ export default async function BuildingsPage({ searchParams }: { searchParams: Pr
   };
   let result: BuildingsPageResult = { buildings: [], total: 0, inventoryByBuilding: {} };
   let error: string | null = null;
-  if (canUsePublicHomeVisualFixture(process.env.VERCEL_ENV ?? process.env.NODE_ENV, params.visualFixture)) {
+  if (canUseProductionPublicSnapshot(process.env.VERCEL_ENV ?? process.env.NODE_ENV, params.publicSnapshot)) {
+    result = getProductionPublicSnapshotPage({ page, pageSize: PAGE_SIZE, ...filters });
+  } else if (canUsePublicHomeVisualFixture(process.env.VERCEL_ENV ?? process.env.NODE_ENV, params.visualFixture)) {
     result = getPublicHomeVisualFixture({ pageSize: PAGE_SIZE });
   } else {
     try {

@@ -15,7 +15,9 @@
     "test:roommate": "tsx --test lib/roommate/*.test.ts",
     "verify:roommate-rls": "tsx scripts/verify-roommate-rls.ts",
     "deploy:preflight": "node scripts/production-deploy-preflight.mjs --target=production",
-    "test:deploy-preflight": "node --test scripts/production-deploy-preflight.test.mjs"
+    "test:deploy-preflight": "node --test scripts/production-deploy-preflight.test.mjs",
+    "snapshot:public:refresh": "node scripts/preview-public-snapshot.mjs",
+    "snapshot:public:clean": "node scripts/preview-public-snapshot.mjs --clean"
   },
   "dependencies": {
     "@googlemaps/markerclusterer": "2.5.3",
