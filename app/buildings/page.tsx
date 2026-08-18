@@ -1,5 +1,6 @@
 import { BuildingBrowser } from '@/components/building-browser';
 import { fetchBuildingsPage, type BuildingsPageResult } from '@/lib/public-buildings';
+import { canUsePublicHomeVisualFixture, getPublicHomeVisualFixture } from '@/lib/public-home-preview-fixtures';
 
 const PAGE_SIZE = 48;
 
@@ -14,6 +15,7 @@ type BuildingsSearchParams = {
   bathrooms?: string | string[];
   moveInDate?: string;
   moveInFlex?: string | string[];
+  visualFixture?: string;
 };
 
 export default async function BuildingsPage({ searchParams }: { searchParams: Promise<BuildingsSearchParams> }) {
@@ -35,10 +37,14 @@ export default async function BuildingsPage({ searchParams }: { searchParams: Pr
   };
   let result: BuildingsPageResult = { buildings: [], total: 0, inventoryByBuilding: {} };
   let error: string | null = null;
-  try {
-    result = await fetchBuildingsPage({ page, pageSize: PAGE_SIZE, ...filters });
-  } catch {
-    error = 'Unable to load buildings.';
+  if (canUsePublicHomeVisualFixture(process.env.VERCEL_ENV ?? process.env.NODE_ENV, params.visualFixture)) {
+    result = getPublicHomeVisualFixture({ pageSize: PAGE_SIZE });
+  } else {
+    try {
+      result = await fetchBuildingsPage({ page, pageSize: PAGE_SIZE, ...filters });
+    } catch {
+      error = 'Unable to load buildings.';
+    }
   }
   return <BuildingBrowser key={JSON.stringify({ page, ...filters })} initialPage={page} initialFilters={filters} initialResult={result} initialError={error} mode="buildings" />;
 }

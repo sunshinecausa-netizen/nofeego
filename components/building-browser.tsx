@@ -185,6 +185,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       viewportRequestRef.current = controller;
       const sequence = ++viewportSequenceRef.current;
       const params = new URLSearchParams({ north: String(viewport.north), south: String(viewport.south), east: String(viewport.east), west: String(viewport.west), pageSize: String(pageSize) });
+      if (new URLSearchParams(window.location.search).get('visualFixture') === 'reference') params.set('visualFixture', 'reference');
       if (starting.search.trim()) params.set('q', starting.search.trim());
       starting.boroughs.forEach((value) => params.append('borough', value));
       starting.neighborhoods.forEach((value) => params.append('neighborhood', value));
@@ -215,6 +216,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
 
   function href(page: number, values: BuildingFilters = starting) {
     const params = new URLSearchParams();
+    if (new URLSearchParams(window.location.search).get('visualFixture') === 'reference') params.set('visualFixture', 'reference');
     if (values.search?.trim()) params.set('q', values.search.trim());
     values.boroughs?.forEach((item) => params.append('borough', item));
     values.neighborhoods?.forEach((item) => params.append('neighborhood', item));
@@ -371,7 +373,7 @@ export function BuildingBrowser({ initialPage, initialQuery = '', initialFilters
       inventory={result.inventoryByBuilding[building.id]}
       compared={comparedBuildings.some((item) => item.id === building.id)}
       favorited={favoriteBuildingIds.includes(building.id)}
-      highlighted={selectedBuildingId === building.id}
+      highlighted={selectedBuildingId === building.id || hoveredBuildingId === building.id}
       onCompareChange={toggleCompare}
       onFavoriteChange={toggleFavorite}
       onHover={setHoveredBuildingId}
