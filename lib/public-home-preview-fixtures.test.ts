@@ -17,4 +17,6 @@ test('visual fixture coordinates stay inside the Northeast service bounds', () =
   assert.ok(result.buildings.every((building) => building.latitude != null && building.latitude >= 39 && building.latitude <= 43.5));
   assert.ok(result.buildings.every((building) => building.longitude != null && building.longitude >= -76 && building.longitude <= -69));
   assert.ok(result.buildings.every((building) => building.latitude !== 0 && building.longitude !== 0));
+  const coordinateKeys = result.buildings.map((building) => `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`);
+  assert.equal(new Set(coordinateKeys).size, result.buildings.length);
 });

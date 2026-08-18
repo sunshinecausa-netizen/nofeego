@@ -6,6 +6,7 @@ import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markercluste
 import { AlertTriangle, Pencil, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BuildingCard } from '@/components/building-result-card';
+import { formatMarkerPrice, shouldShowPriceMarker, uniqueMapBuildings, uniqueMapLocationCount } from '@/lib/map-marker-contract';
 import type { BuildingInventorySummary } from '@/lib/public-buildings';
 import type { Building } from '@/lib/types';
 
@@ -72,7 +73,8 @@ function priceLabels(item: BuildingMapItem, selectedBedrooms: string[]): PriceLa
     : available.length > 0 ? [available.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest)] : [];
   if (visible.length === 0) return [];
   const minimum = visible.reduce((lowest, entry) => entry.price < lowest.price ? entry : lowest).price;
-  return [{ key: 'price', text: `${Math.round(minimum)}+` }];
+  const text = formatMarkerPrice(minimum);
+  return text ? [{ key: 'price', text }] : [];
 }
 
 function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) {
@@ -85,6 +87,20 @@ function priceMarkerIcon(labels: PriceLabel[], color: string, selected = false) 
   const text = labels.map((label, index) => `<text x="${width / 2}" y="${halo + index * rowHeight + 15}" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="12" font-weight="700">${label.text}</text>`).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${selected ? `<rect width="${width}" height="${bodyHeight + halo * 2}" rx="16" fill="rgba(220,38,38,.22)"/>` : ''}<rect x="${halo}" y="${halo}" width="${width - halo * 2}" height="${bodyHeight}" rx="12.5" fill="${color}"/><path d="M ${width / 2 - 5} ${halo + bodyHeight - 1} L ${width / 2} ${halo + bodyHeight + 7} L ${width / 2 + 5} ${halo + bodyHeight - 1} Z" fill="${color}"/>${dividerLines}${text}</svg>`;
   return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, scaledSize: new google.maps.Size(width, height), anchor: new google.maps.Point(width / 2, height) };
+}
+
+function buildingMarkerIcon(color: string, selected = false) {
+  const size = selected ? 22 : 16;
+  const radius = selected ? 8 : 6;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${radius}" fill="${color}" stroke="white" stroke-width="2"/></svg>`;
+  return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, scaledSize: new google.maps.Size(size, size), anchor: new google.maps.Point(size / 2, size / 2) };
+}
+
+function markerIcon(item: BuildingMapItem, selectedBedrooms: string[], zoom: number | undefined, color: string, selected = false) {
+  const labels = priceLabels(item, selectedBedrooms);
+  return (selected || shouldShowPriceMarker(zoom)) && labels.length > 0
+    ? priceMarkerIcon(labels, color, selected)
+    : buildingMarkerIcon(color, selected);
 }
 
 function isInsideArea(point: { lat: number; lng: number }, area: Array<{ lat: number; lng: number }>) {
@@ -124,25 +140,11 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   const [mapTypeId, setMapTypeId] = useState<'roadmap' | 'satellite'>('roadmap');
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewError, setStreetViewError] = useState<string | null>(null);
-  const validBuildings = useMemo(() => buildings.filter((building) => building.latitude != null && building.longitude != null && building.latitude >= 39 && building.latitude <= 43.5 && building.longitude >= -76 && building.longitude <= -69), [buildings]);
+  const validBuildings = useMemo(() => uniqueMapBuildings(buildings), [buildings]);
   const selectionBuildingsRef = useRef(validBuildings);
-  const markerPositions = useMemo(() => {
-    const coordinateGroups = validBuildings.reduce((groups, building) => {
-      const key = `${building.latitude!.toFixed(6)},${building.longitude!.toFixed(6)}`;
-      const group = groups.get(key);
-      if (group) group.push(building);
-      else groups.set(key, [building]);
-      return groups;
-    }, new Map<string, BuildingMapItem[]>());
-    const positions = new Map<string, google.maps.LatLngLiteral>();
-    coordinateGroups.forEach((group) => group.forEach((building, index) => {
-      const angle = group.length > 1 ? (Math.PI * 2 * index) / group.length : 0;
-      const offset = group.length > 1 ? 0.000045 : 0;
-      positions.set(building.id, { lat: building.latitude! + Math.sin(angle) * offset, lng: building.longitude! + Math.cos(angle) * offset });
-    }));
-    return positions;
-  }, [validBuildings]);
+  const markerPositions = useMemo(() => new Map(validBuildings.map((building) => [building.id, { lat: building.latitude!, lng: building.longitude! }])), [validBuildings]);
   const locationGroups = useMemo(() => validBuildings.map((building) => [building]), [validBuildings]);
+  const locationCount = useMemo(() => uniqueMapLocationCount(validBuildings), [validBuildings]);
 
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY || scriptLoaded || loadError) return;
@@ -235,10 +237,10 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       bounds.extend(position);
       const labels = priceLabels(building, selectedBedrooms);
       const marker = new google.maps.Marker({
-        map,
         position,
         title: group.map((item) => publicStreetName(item.address)).join(', '),
-        icon: priceMarkerIcon(labels, markerColor),
+        icon: markerIcon(building, selectedBedrooms, map.getZoom(), markerColor),
+        optimized: true,
       });
 
       const openPreview = (focusedBuildingId = group[0].id) => {
@@ -318,7 +320,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
     const markerClusterer = new MarkerClusterer({
       map,
       markers,
-      algorithm: new SuperClusterAlgorithm({ radius: 44, maxZoom: 15 }),
+      algorithm: new SuperClusterAlgorithm({ radius: 72, maxZoom: 16 }),
       renderer: {
         render: ({ count, position }) => new google.maps.Marker({
           position,
@@ -333,6 +335,10 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
         }),
       },
     });
+    const zoomListener = map.addListener('zoom_changed', () => {
+      const zoom = map.getZoom();
+      markers.forEach((marker, index) => marker.setIcon(markerIcon(locationGroups[index][0], selectedBedrooms, zoom, markerColor)));
+    });
     if (validBuildings.length === 1) {
       suppressViewportUntilRef.current = performance.now() + 1200;
       map.setCenter({ lat: validBuildings[0].latitude!, lng: validBuildings[0].longitude! });
@@ -344,6 +350,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       previewRoot = null;
       cancelClose();
       idleListener.remove();
+      zoomListener.remove();
       projectionOverlay.setMap(null);
       streetViewVisibilityListenerRef.current?.remove();
       streetViewVisibilityListenerRef.current = null;
@@ -491,7 +498,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
       const item = selected && selectedBuildingId
         ? validBuildings.find((building) => building.id === selectedBuildingId)
         : validBuildings.find((building) => markersRef.current.get(building.id) === marker);
-      if (item) marker.setIcon(priceMarkerIcon(priceLabels(item, selectedBedrooms), markerColor, selected));
+      if (item) marker.setIcon(markerIcon(item, selectedBedrooms, googleMapRef.current?.getZoom(), markerColor, selected));
       marker.setZIndex(selected ? 2000 : active ? 1000 : undefined);
       marker.setAnimation(null);
     });
@@ -500,15 +507,14 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   if (!GOOGLE_MAPS_API_KEY || loadError) {
     return (
         <div className={cn('relative min-h-[420px] overflow-hidden bg-gradient-to-br from-slate-100 via-emerald-50 to-slate-200', className)}>
-        <MapResultCount buildingCount={validBuildings.length} locationCount={locationGroups.length} />
+        <MapResultCount buildingCount={validBuildings.length} locationCount={locationCount} />
         <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(26,107,79,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(26,107,79,.12) 1px,transparent 1px)', backgroundSize: '48px 48px' }} />
         {validBuildings.map((building) => {
           const x = ((building.longitude! + 74.08) / 0.3) * 100;
           const y = ((40.93 - building.latitude!) / 0.35) * 100;
           if (x < 0 || x > 100 || y < 0 || y > 100) return null;
-          const labels = priceLabels(building, selectedBedrooms);
           const streetName = publicStreetName(building.address);
-          return <a key={building.id} href={`/buildings/${building.slug}`} title={streetName} aria-label={`${streetName}: ${labels.map((label) => label.text).join(', ')}`} className="group absolute -translate-x-1/2 -translate-y-full space-y-0.5" style={{ left: `${x}%`, top: `${y}%` }}>{labels.map((label) => <span key={label.key} className="block whitespace-nowrap rounded-full bg-[var(--map-marker)] px-2.5 py-1 text-sm font-bold leading-none text-white shadow-sm transition-transform group-hover:scale-105">{label.text}</span>)}</a>;
+          return <a key={building.id} href={`/buildings/${building.slug}`} title={streetName} aria-label={streetName} className="group absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[var(--map-marker)] shadow-sm transition-transform hover:z-10 hover:scale-150" style={{ left: `${x}%`, top: `${y}%` }} />;
         })}
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-white/95 px-3 py-2 text-sm shadow-sm"><AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" /><span>Interactive map unavailable. Building locations remain selectable in this fallback view.</span></div>
         </div>
@@ -516,7 +522,7 @@ export function BuildingMap({ buildings, selectedBedrooms = [], hoveredBuildingI
   }
 
   return <div className={cn('relative min-h-[420px] overflow-hidden bg-muted', className)}>
-    <MapResultCount buildingCount={validBuildings.length} locationCount={locationGroups.length} />
+    <MapResultCount buildingCount={validBuildings.length} locationCount={locationCount} />
     <div className="absolute right-14 top-3 z-20 flex max-w-[calc(100%-5rem)] flex-wrap items-center justify-end gap-2">
       <div className="flex overflow-hidden rounded-lg border border-border bg-white shadow-md" role="group" aria-label="Map display mode">
         <button type="button" onClick={() => setMapTypeId('roadmap')} className={`min-h-11 px-3 text-sm font-semibold transition ${mapTypeId === 'roadmap' ? 'bg-primary text-white' : 'bg-white text-foreground hover:bg-muted'}`} aria-pressed={mapTypeId === 'roadmap'}>Map</button>

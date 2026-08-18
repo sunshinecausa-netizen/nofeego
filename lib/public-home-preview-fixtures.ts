@@ -2,17 +2,19 @@ import type { Building } from '@/lib/types';
 import type { BuildingsPageResult } from '@/lib/public-buildings';
 
 const FIXTURE_COUNT = 350;
-const MIDTOWN_CENTER = { latitude: 40.7549, longitude: -73.984 };
 
 export function canUsePublicHomeVisualFixture(environment: string | undefined, requested: string | null | undefined) {
   return requested === 'reference' && (environment === 'preview' || environment === 'development');
 }
 
 function fixtureBuilding(index: number): Building {
-  const row = Math.floor(index / 25);
-  const column = index % 25;
-  const latitude = MIDTOWN_CENTER.latitude + (row - 7) * 0.0022 + ((column % 3) - 1) * 0.00018;
-  const longitude = MIDTOWN_CENTER.longitude + (column - 12) * 0.00235 + ((row % 3) - 1) * 0.00016;
+  // Deterministic low-discrepancy points follow Manhattan's southwest-to-northeast
+  // shape without forming an artificial grid. These are Preview-only fixtures.
+  const latitudeSequence = ((index + 1) * 0.61803398875) % 1;
+  const lateralSequence = ((index + 1) * 0.41421356237) % 1;
+  const latitude = 40.704 + latitudeSequence * 0.168;
+  const centerLongitude = -74.015 + latitudeSequence * 0.078;
+  const longitude = centerLongitude + (lateralSequence - 0.5) * 0.014;
   const id = `visual-fixture-${String(index + 1).padStart(3, '0')}`;
   return {
     id,
