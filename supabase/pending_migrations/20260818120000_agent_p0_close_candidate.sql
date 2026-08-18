@@ -68,11 +68,11 @@ CREATE TABLE IF NOT EXISTS public.application_status_history (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   application_id uuid NOT NULL REFERENCES public.applications(id) ON DELETE CASCADE,
   rental_case_id uuid NOT NULL REFERENCES public.rental_cases(id) ON DELETE CASCADE,
-  previous_status text,
-  new_status text NOT NULL,
+  from_status text,
+  to_status text NOT NULL,
   actor_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   actor_role text NOT NULL,
-  note text,
+  reason text,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE INDEX IF NOT EXISTS application_status_history_case_idx
@@ -238,7 +238,7 @@ BEGIN
       lease_reference=CASE WHEN p_to_status='lease_signed' THEN NULLIF(btrim(p_lease_reference),'') ELSE lease_reference END
     WHERE id=app.id RETURNING * INTO app;
   END IF;
-  INSERT INTO public.application_status_history(application_id,rental_case_id,previous_status,new_status,actor_id,actor_role,note)
+  INSERT INTO public.application_status_history(application_id,rental_case_id,from_status,to_status,actor_id,actor_role,reason)
   VALUES(app.id,c.id,old_status,app.status,auth.uid(),role_name,NULLIF(btrim(p_note),''));
   INSERT INTO public.rental_case_audit_logs(rental_case_id,actor_id,actor_role,event_type,metadata)
   VALUES(c.id,auth.uid(),role_name,'application.status_changed',jsonb_build_object('application_id',app.id,'from',old_status,'to',app.status));
@@ -278,8 +278,8 @@ BEGIN
       'next_follow_up_at',a.next_follow_up_at,'updated_at',a.updated_at
     ) ORDER BY a.created_at) FROM public.applications a WHERE a.rental_case_id=c.id),'[]'::jsonb),
     'application_history',COALESCE((SELECT jsonb_agg(jsonb_build_object(
-      'id',h.id,'application_id',h.application_id,'previous_status',h.previous_status,
-      'new_status',h.new_status,'actor_role',h.actor_role,'created_at',h.created_at
+      'id',h.id,'application_id',h.application_id,'from_status',h.from_status,
+      'to_status',h.to_status,'actor_role',h.actor_role,'created_at',h.created_at
     ) ORDER BY h.created_at,h.id) FROM public.application_status_history h WHERE h.rental_case_id=c.id),'[]'::jsonb)
   ) INTO result;
   RETURN result;

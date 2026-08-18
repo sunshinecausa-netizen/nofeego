@@ -93,8 +93,8 @@ export interface Database {
         lease_sent_at:string|null;lease_signed_at:string|null;lease_reference:string|null;last_follow_up_at:string|null;next_follow_up_at:string|null;updated_by:string|null;
       }>;
       application_status_history: Table<{
-        id:string;application_id:string;rental_case_id:string;previous_status:string|null;new_status:string;
-        actor_id:string|null;actor_role:string;note:string|null;created_at:string;
+        id:string;application_id:string;rental_case_id:string;from_status:string|null;to_status:string;
+        actor_id:string|null;actor_role:string;reason:string|null;created_at:string;
       }>;
       rental_case_recommendation_feedback: Table<{
         id: string; rental_case_id: string; recommendation_id: string; tenant_id: string;
