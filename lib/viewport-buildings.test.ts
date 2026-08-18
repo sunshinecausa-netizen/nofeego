@@ -4,7 +4,7 @@ import { fetchBuildingsPageUncached } from './viewport-buildings';
 
 test('applies bounds and stable ordering before pagination', async () => {
   process.env.SUPABASE_URL = 'https://example.supabase.co';
-  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-server-only-key';
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-public-anon-key';
   const requested: URL[] = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input) => {
@@ -25,6 +25,6 @@ test('applies bounds and stable ordering before pagination', async () => {
   } finally {
     globalThis.fetch = originalFetch;
     delete process.env.SUPABASE_URL;
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   }
 });

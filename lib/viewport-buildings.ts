@@ -43,9 +43,8 @@ const ALLOWED_AMENITIES = new Set(['Pets Allowed', 'Small Dogs Allowed', 'Large 
 const PUBLIC_CATALOG_REVALIDATE_SECONDS = 60;
 const PUBLIC_BUILDING_FIELDS = 'id,slug,name,address,city,state,zip_code,latitude,longitude,neighborhood,borough,amenities,hero_image_url,hero_image,nearby_subway,updated_at,building_type,stories,total_units';
 
-function catalogRequest(serviceRoleKey: string, count = false): RequestInit {
-  const headers: Record<string, string> = { apikey: serviceRoleKey };
-  if (!serviceRoleKey.startsWith('sb_secret_')) headers.Authorization = `Bearer ${serviceRoleKey}`;
+function catalogRequest(anonKey: string, count = false): RequestInit {
+  const headers: Record<string, string> = { apikey: anonKey, Authorization: `Bearer ${anonKey}` };
   if (count) headers.Prefer = 'count=exact';
   return {
     headers,
@@ -70,8 +69,8 @@ export async function fetchBuildingsPageUncached({
   west,
 }: { page: number; pageSize: number } & BuildingFilters): Promise<BuildingsPageResult> {
   const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) throw new Error('Protected catalog data is not configured.');
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) throw new Error('Public catalog data is not configured.');
 
   const safePage = Math.max(1, Math.floor(page));
   const safePageSize = Math.min(500, Math.max(1, Math.floor(pageSize)));
@@ -156,7 +155,7 @@ export async function fetchBuildingsPageUncached({
       listingsEndpoint.searchParams.set('move_in_date', `gte.${moveInRange[0]}`);
       listingsEndpoint.searchParams.append('move_in_date', `lte.${moveInRange[1]}`);
     }
-    const listingsResponse = await fetch(listingsEndpoint, catalogRequest(serviceRoleKey));
+    const listingsResponse = await fetch(listingsEndpoint, catalogRequest(anonKey));
     if (!listingsResponse.ok) throw new Error('Unable to load matching inventory.');
     const matchingListings = await listingsResponse.json() as Array<{ building_id: string }>;
     const buildingIds = [...new Set(matchingListings.map((item) => item.building_id).filter(Boolean))];
@@ -164,7 +163,7 @@ export async function fetchBuildingsPageUncached({
     endpoint.searchParams.set('id', `in.(${buildingIds.join(',')})`);
   }
 
-  const response = await fetch(endpoint, catalogRequest(serviceRoleKey, true));
+  const response = await fetch(endpoint, catalogRequest(anonKey, true));
   if (!response.ok) {
     const error = await response.json().catch(() => ({})) as { code?: string };
     console.error('Public buildings query failed', { code: error.code ?? `HTTP_${response.status}` });
@@ -184,7 +183,7 @@ export async function fetchBuildingsPageUncached({
       inventoryEndpoint.searchParams.set('select', 'building_id,bedrooms,min_rent,max_rent,available_count,earliest_available_date,has_no_fee_inventory,updated_at');
       inventoryEndpoint.searchParams.set('building_id', `in.(${batch.join(',')})`);
       try {
-        const response = await fetch(inventoryEndpoint, catalogRequest(serviceRoleKey));
+        const response = await fetch(inventoryEndpoint, catalogRequest(anonKey));
         return response.ok ? await response.json() as InventorySummaryRow[] : [];
       } catch {
         return [];
